@@ -1,0 +1,4 @@
+{
+  "jdk.jdkhome": "/opt/homebrew/opt/openjdk@21",
+  "jdk.project.jdkhome": "/opt/homebrew/opt/openjdk@21"
+}

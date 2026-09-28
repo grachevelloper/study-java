@@ -1,22 +1,258 @@
 package ru.mirea.store.export;
 
-import java.io.*; import java.nio.file.*; import java.time.*; import java.time.format.DateTimeFormatter; import java.util.Objects;
-import org.apache.poi.ss.usermodel.*; import org.apache.poi.ss.util.CellRangeAddress; import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import ru.mirea.store.exception.ExportException; import ru.mirea.store.model.*;
+import java.io.*;
+import java.nio.file.*;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.Objects;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import ru.mirea.store.exception.ExportException;
+import ru.mirea.store.model.*;
 
 public final class ExcelExporter implements DataExporter {
-    private static final int MAX_WIDTH=50*256; private static final DateTimeFormatter FILE_TIME=DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-    public Path export(StoreExportData data,Path directory){Objects.requireNonNull(data);Objects.requireNonNull(directory);try{Files.createDirectories(directory);Path path=directory.resolve("online-store-export-"+LocalDateTime.now().format(FILE_TIME)+".xlsx");try(Workbook workbook=new XSSFWorkbook();OutputStream output=Files.newOutputStream(path)){Styles styles=styles(workbook);customers(workbook,data,styles);products(workbook,data,styles);orders(workbook,data,styles);items(workbook,data,styles);statistics(workbook,data.statistics(),styles);workbook.write(output);}return path;}catch(IOException e){throw new ExportException("Не удалось создать Excel-файл.",e);}}
-    private static Styles styles(Workbook w){CellStyle header=w.createCellStyle();Font font=w.createFont();font.setBold(true);header.setFont(font);header.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());header.setFillPattern(FillPatternType.SOLID_FOREGROUND);CellStyle date=w.createCellStyle();date.setDataFormat(w.getCreationHelper().createDataFormat().getFormat("yyyy-mm-dd hh:mm"));CellStyle money=w.createCellStyle();money.setDataFormat(w.getCreationHelper().createDataFormat().getFormat("#,##0.00"));return new Styles(header,date,money);}
-    private static void customers(Workbook w,StoreExportData d,Styles s){Sheet sheet=w.createSheet("Customers");String[] h={"ID","Full name","Email","Phone","Active","Registered at"};header(sheet,h,s.header);int r=1;for(Customer v:d.customers()){Row row=sheet.createRow(r++);row.createCell(0).setCellValue(v.getId());row.createCell(1).setCellValue(v.getFullName());row.createCell(2).setCellValue(v.getEmail());row.createCell(3).setCellValue(v.getPhone()==null?"":v.getPhone());row.createCell(4).setCellValue(v.isActive());date(row.createCell(5),v.getRegisteredAt(),s.date);}finish(sheet,h.length);}
-    private static void products(Workbook w,StoreExportData d,Styles s){Sheet sheet=w.createSheet("Products");String[] h={"ID","SKU","Name","Price","Stock","Active"};header(sheet,h,s.header);int r=1;for(Product v:d.products()){Row row=sheet.createRow(r++);row.createCell(0).setCellValue(v.getId());row.createCell(1).setCellValue(v.getSku());row.createCell(2).setCellValue(v.getName());money(row.createCell(3),v.getPrice(),s.money);row.createCell(4).setCellValue(v.getStockQuantity());row.createCell(5).setCellValue(v.isActive());}finish(sheet,h.length);}
-    private static void orders(Workbook w,StoreExportData d,Styles s){Sheet sheet=w.createSheet("Orders");String[] h={"ID","Customer ID","Customer","Status","Created","Paid","Shipped","Delivered","Cancelled","Total","Note"};header(sheet,h,s.header);int r=1;for(CustomerOrderDetails v:d.orders()){CustomerOrder o=v.getOrder();Row row=sheet.createRow(r++);row.createCell(0).setCellValue(o.getId());row.createCell(1).setCellValue(o.getCustomerId());row.createCell(2).setCellValue(v.getCustomerName());row.createCell(3).setCellValue(o.getStatus().name());date(row.createCell(4),o.getCreatedAt(),s.date);date(row.createCell(5),o.getPaidAt(),s.date);date(row.createCell(6),o.getShippedAt(),s.date);date(row.createCell(7),o.getDeliveredAt(),s.date);date(row.createCell(8),o.getCancelledAt(),s.date);money(row.createCell(9),v.getTotal(),s.money);row.createCell(10).setCellValue(o.getNote()==null?"":o.getNote());}finish(sheet,h.length);}
-    private static void items(Workbook w,StoreExportData d,Styles s){Sheet sheet=w.createSheet("Order Items");String[] h={"Order ID","Product ID","SKU","Product","Quantity","Unit price","Line total"};header(sheet,h,s.header);int r=1;for(CustomerOrderDetails order:d.orders())for(OrderItemDetails v:order.getItems()){OrderItem i=v.getItem();Row row=sheet.createRow(r++);row.createCell(0).setCellValue(order.getOrder().getId());row.createCell(1).setCellValue(i.getProductId());row.createCell(2).setCellValue(v.getProductSku());row.createCell(3).setCellValue(v.getProductName());row.createCell(4).setCellValue(i.getQuantity());money(row.createCell(5),i.getUnitPrice(),s.money);money(row.createCell(6),i.getLineTotal(),s.money);}finish(sheet,h.length);}
-    private static void statistics(Workbook w,SystemStatistics v,Styles s){Sheet sheet=w.createSheet("Statistics");header(sheet,new String[]{"Indicator","Value"},s.header);int r=1;r=stat(sheet,r,"Customers",v.getCustomerCount(),null);r=stat(sheet,r,"Products",v.getProductCount(),null);r=stat(sheet,r,"Units in stock",v.getStockUnitCount(),null);r=stat(sheet,r,"Orders",v.getOrderCount(),null);r=stat(sheet,r,"Out of stock",v.getOutOfStockProductCount(),null);r=stat(sheet,r,"Delivered revenue",v.getDeliveredRevenue().doubleValue(),s.money);for(OrderStatus status:OrderStatus.values())r=stat(sheet,r,"Status "+status,v.getOrdersByStatus().getOrDefault(status,0L),null);finish(sheet,2);}
-    private static int stat(Sheet sheet,int index,String name,double value,CellStyle style){Row row=sheet.createRow(index);row.createCell(0).setCellValue(name);Cell cell=row.createCell(1);cell.setCellValue(value);if(style!=null)cell.setCellStyle(style);return index+1;}
-    private static void header(Sheet sheet,String[] values,CellStyle style){Row row=sheet.createRow(0);for(int i=0;i<values.length;i++){Cell cell=row.createCell(i);cell.setCellValue(values[i]);cell.setCellStyle(style);}}
-    private static void date(Cell cell,LocalDateTime value,CellStyle style){if(value!=null){cell.setCellValue(value);cell.setCellStyle(style);}}
-    private static void money(Cell cell,java.math.BigDecimal value,CellStyle style){cell.setCellValue(value.doubleValue());cell.setCellStyle(style);}
-    private static void finish(Sheet sheet,int columns){sheet.createFreezePane(0,1);sheet.setAutoFilter(new CellRangeAddress(0,Math.max(0,sheet.getLastRowNum()),0,columns-1));for(int column=0;column<columns;column++){int longest=10;for(Row row:sheet){Cell cell=row.getCell(column);if(cell!=null)longest=Math.max(longest,cell.toString().length());}sheet.setColumnWidth(column,Math.min((longest+2)*256,MAX_WIDTH));}}
-    private record Styles(CellStyle header,CellStyle date,CellStyle money){}
+
+  private static final int MAX_WIDTH = 50 * 256;
+  private static final DateTimeFormatter FILE_TIME =
+    DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
+  public Path export(StoreExportData data, Path directory) {
+    Objects.requireNonNull(data);
+    Objects.requireNonNull(directory);
+    try {
+      Files.createDirectories(directory);
+      Path path = directory.resolve(
+        "online-store-export-" + LocalDateTime.now().format(FILE_TIME) + ".xlsx"
+      );
+      try (
+        Workbook workbook = new XSSFWorkbook();
+        OutputStream output = Files.newOutputStream(path)
+      ) {
+        Styles styles = styles(workbook);
+        customers(workbook, data, styles);
+        products(workbook, data, styles);
+        orders(workbook, data, styles);
+        items(workbook, data, styles);
+        statistics(workbook, data.statistics(), styles);
+        workbook.write(output);
+      }
+      return path;
+    } catch (IOException e) {
+      throw new ExportException("Не удалось создать Excel-файл.", e);
+    }
+  }
+
+  private static Styles styles(Workbook w) {
+    CellStyle header = w.createCellStyle();
+    Font font = w.createFont();
+    font.setBold(true);
+    header.setFont(font);
+    header.setFillForegroundColor(
+      IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex()
+    );
+    header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+    CellStyle date = w.createCellStyle();
+    date.setDataFormat(
+      w.getCreationHelper().createDataFormat().getFormat("yyyy-mm-dd hh:mm")
+    );
+    CellStyle money = w.createCellStyle();
+    money.setDataFormat(
+      w.getCreationHelper().createDataFormat().getFormat("#,##0.00")
+    );
+    return new Styles(header, date, money);
+  }
+
+  private static void customers(Workbook w, StoreExportData d, Styles s) {
+    Sheet sheet = w.createSheet("Customers");
+    String[] h = {
+      "ID",
+      "Full name",
+      "Email",
+      "Phone",
+      "Active",
+      "Registered at",
+    };
+    header(sheet, h, s.header);
+    int r = 1;
+    for (Customer v : d.customers()) {
+      Row row = sheet.createRow(r++);
+      row.createCell(0).setCellValue(v.getId());
+      row.createCell(1).setCellValue(v.getFullName());
+      row.createCell(2).setCellValue(v.getEmail());
+      row.createCell(3).setCellValue(v.getPhone() == null ? "" : v.getPhone());
+      row.createCell(4).setCellValue(v.isActive());
+      date(row.createCell(5), v.getRegisteredAt(), s.date);
+    }
+    finish(sheet, h.length);
+  }
+
+  private static void products(Workbook w, StoreExportData d, Styles s) {
+    Sheet sheet = w.createSheet("Products");
+    String[] h = { "ID", "SKU", "Name", "Price", "Stock", "Active" };
+    header(sheet, h, s.header);
+    int r = 1;
+    for (Product v : d.products()) {
+      Row row = sheet.createRow(r++);
+      row.createCell(0).setCellValue(v.getId());
+      row.createCell(1).setCellValue(v.getSku());
+      row.createCell(2).setCellValue(v.getName());
+      money(row.createCell(3), v.getPrice(), s.money);
+      row.createCell(4).setCellValue(v.getStockQuantity());
+      row.createCell(5).setCellValue(v.isActive());
+    }
+    finish(sheet, h.length);
+  }
+
+  private static void orders(Workbook w, StoreExportData d, Styles s) {
+    Sheet sheet = w.createSheet("Orders");
+    String[] h = {
+      "ID",
+      "Customer ID",
+      "Customer",
+      "Status",
+      "Created",
+      "Paid",
+      "Shipped",
+      "Delivered",
+      "Cancelled",
+      "Total",
+      "Note",
+    };
+    header(sheet, h, s.header);
+    int r = 1;
+    for (CustomerOrderDetails v : d.orders()) {
+      CustomerOrder o = v.getOrder();
+      Row row = sheet.createRow(r++);
+      row.createCell(0).setCellValue(o.getId());
+      row.createCell(1).setCellValue(o.getCustomerId());
+      row.createCell(2).setCellValue(v.getCustomerName());
+      row.createCell(3).setCellValue(o.getStatus().name());
+      date(row.createCell(4), o.getCreatedAt(), s.date);
+      date(row.createCell(5), o.getPaidAt(), s.date);
+      date(row.createCell(6), o.getShippedAt(), s.date);
+      date(row.createCell(7), o.getDeliveredAt(), s.date);
+      date(row.createCell(8), o.getCancelledAt(), s.date);
+      money(row.createCell(9), v.getTotal(), s.money);
+      row.createCell(10).setCellValue(o.getNote() == null ? "" : o.getNote());
+    }
+    finish(sheet, h.length);
+  }
+
+  private static void items(Workbook w, StoreExportData d, Styles s) {
+    Sheet sheet = w.createSheet("Order Items");
+    String[] h = {
+      "Order ID",
+      "Product ID",
+      "SKU",
+      "Product",
+      "Quantity",
+      "Unit price",
+      "Line total",
+    };
+    header(sheet, h, s.header);
+    int r = 1;
+    for (CustomerOrderDetails order : d.orders())
+      for (OrderItemDetails v : order.getItems()) {
+        OrderItem i = v.getItem();
+        Row row = sheet.createRow(r++);
+        row.createCell(0).setCellValue(order.getOrder().getId());
+        row.createCell(1).setCellValue(i.getProductId());
+        row.createCell(2).setCellValue(v.getProductSku());
+        row.createCell(3).setCellValue(v.getProductName());
+        row.createCell(4).setCellValue(i.getQuantity());
+        money(row.createCell(5), i.getUnitPrice(), s.money);
+        money(row.createCell(6), i.getLineTotal(), s.money);
+      }
+    finish(sheet, h.length);
+  }
+
+  private static void statistics(Workbook w, SystemStatistics v, Styles s) {
+    Sheet sheet = w.createSheet("Statistics");
+    header(sheet, new String[] { "Indicator", "Value" }, s.header);
+    int r = 1;
+    r = stat(sheet, r, "Customers", v.getCustomerCount(), null);
+    r = stat(sheet, r, "Products", v.getProductCount(), null);
+    r = stat(sheet, r, "Units in stock", v.getStockUnitCount(), null);
+    r = stat(sheet, r, "Orders", v.getOrderCount(), null);
+    r = stat(sheet, r, "Out of stock", v.getOutOfStockProductCount(), null);
+    r = stat(
+      sheet,
+      r,
+      "Delivered revenue",
+      v.getDeliveredRevenue().doubleValue(),
+      s.money
+    );
+    for (OrderStatus status : OrderStatus.values())
+      r = stat(
+        sheet,
+        r,
+        "Status " + status,
+        v.getOrdersByStatus().getOrDefault(status, 0L),
+        null
+      );
+    finish(sheet, 2);
+  }
+
+  private static int stat(
+    Sheet sheet,
+    int index,
+    String name,
+    double value,
+    CellStyle style
+  ) {
+    Row row = sheet.createRow(index);
+    row.createCell(0).setCellValue(name);
+    Cell cell = row.createCell(1);
+    cell.setCellValue(value);
+    if (style != null) cell.setCellStyle(style);
+    return index + 1;
+  }
+
+  private static void header(Sheet sheet, String[] values, CellStyle style) {
+    Row row = sheet.createRow(0);
+    for (int i = 0; i < values.length; i++) {
+      Cell cell = row.createCell(i);
+      cell.setCellValue(values[i]);
+      cell.setCellStyle(style);
+    }
+  }
+
+  private static void date(Cell cell, LocalDateTime value, CellStyle style) {
+    if (value != null) {
+      cell.setCellValue(value);
+      cell.setCellStyle(style);
+    }
+  }
+
+  private static void money(
+    Cell cell,
+    java.math.BigDecimal value,
+    CellStyle style
+  ) {
+    cell.setCellValue(value.doubleValue());
+    cell.setCellStyle(style);
+  }
+
+  private static void finish(Sheet sheet, int columns) {
+    sheet.createFreezePane(0, 1);
+    sheet.setAutoFilter(
+      new CellRangeAddress(
+        0,
+        Math.max(0, sheet.getLastRowNum()),
+        0,
+        columns - 1
+      )
+    );
+    for (int column = 0; column < columns; column++) {
+      int longest = 10;
+      for (Row row : sheet) {
+        Cell cell = row.getCell(column);
+        if (cell != null) longest = Math.max(longest, cell.toString().length());
+      }
+      sheet.setColumnWidth(column, Math.min((longest + 2) * 256, MAX_WIDTH));
+    }
+  }
+
+  private record Styles(CellStyle header, CellStyle date, CellStyle money) {}
 }

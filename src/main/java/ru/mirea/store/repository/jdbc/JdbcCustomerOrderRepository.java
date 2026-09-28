@@ -1,54 +1,482 @@
 package ru.mirea.store.repository.jdbc;
 
-import java.sql.*; import java.time.*; import java.util.*;
-import ru.mirea.store.config.ConnectionProvider; import ru.mirea.store.exception.*;
-import ru.mirea.store.model.*; import ru.mirea.store.repository.CustomerOrderRepository;
+import java.sql.*;
+import java.time.*;
+import java.util.*;
+import ru.mirea.store.config.ConnectionProvider;
+import ru.mirea.store.exception.*;
+import ru.mirea.store.model.*;
+import ru.mirea.store.repository.CustomerOrderRepository;
 
-public final class JdbcCustomerOrderRepository implements CustomerOrderRepository {
-    private static final String ORDER_COLUMNS="id, customer_id, status, created_at, paid_at, shipped_at, delivered_at, cancelled_at, note";
-    private static final String DETAILS="""
-        SELECT o.id, o.customer_id, o.status, o.created_at, o.paid_at, o.shipped_at,
-               o.delivered_at, o.cancelled_at, o.note, c.full_name AS customer_name,
-               i.id AS item_id, i.order_id, i.product_id, i.quantity, i.unit_price,
-               p.sku AS product_sku, p.name AS product_name
-        FROM customer_orders o JOIN customers c ON c.id=o.customer_id
-        JOIN order_items i ON i.order_id=o.id JOIN products p ON p.id=i.product_id
-        """;
-    private final ConnectionProvider provider;
-    public JdbcCustomerOrderRepository(ConnectionProvider provider){this.provider=Objects.requireNonNull(provider);}
+public final class JdbcCustomerOrderRepository
+  implements CustomerOrderRepository
+{
 
-    public CustomerOrder create(CustomerOrder order,List<OrderItem> items){return transaction("Не удалось создать заказ.",c->{long id=insertOrder(c,order);insertItems(c,id,items);return copyId(order,id);});}
-    public CustomerOrder updateNew(CustomerOrder order,List<OrderItem> items){return transaction("Не удалось изменить заказ.",c->{lockOrder(c,order.getId(),OrderStatus.NEW);try(PreparedStatement s=c.prepareStatement("UPDATE customer_orders SET customer_id=?,note=? WHERE id=? AND status='NEW'")){s.setLong(1,order.getCustomerId());s.setString(2,order.getNote());s.setLong(3,order.getId());if(s.executeUpdate()!=1)throw new BusinessRuleException("Заказ уже изменён.");}try(PreparedStatement s=c.prepareStatement("DELETE FROM order_items WHERE order_id=?")){s.setLong(1,order.getId());s.executeUpdate();}insertItems(c,order.getId(),items);return order;});}
-    public boolean deleteById(long id){try(Connection c=provider.getConnection();PreparedStatement s=c.prepareStatement("DELETE FROM customer_orders WHERE id=? AND status IN ('NEW','CANCELLED')")){s.setLong(1,id);return s.executeUpdate()==1;}catch(SQLException e){throw new DataAccessException("Не удалось удалить заказ.",e);}}
-    public List<CustomerOrderDetails> findAll(){return query(DETAILS+" ORDER BY o.id,i.id",s->{});}
-    public Optional<CustomerOrderDetails> findById(long id){return query(DETAILS+" WHERE o.id=? ORDER BY o.id,i.id",s->s.setLong(1,id)).stream().findFirst();}
-    public List<CustomerOrderDetails> findByProductName(String value){String sql=DETAILS+" WHERE EXISTS (SELECT 1 FROM order_items mi JOIN products mp ON mp.id=mi.product_id WHERE mi.order_id=o.id AND mp.name ILIKE ? ESCAPE '\\') ORDER BY o.id,i.id";return query(sql,s->s.setString(1,likePattern(value)));}
-    public List<CustomerOrderDetails> findByCustomerName(String value){return query(DETAILS+" WHERE c.full_name ILIKE ? ESCAPE '\\' ORDER BY o.id,i.id",s->s.setString(1,likePattern(value)));}
-    public List<CustomerOrderDetails> findByStatus(OrderStatus status){return query(DETAILS+" WHERE o.status=? ORDER BY o.id,i.id",s->s.setString(1,status.name()));}
-    public List<CustomerOrderDetails> findByCreatedAt(LocalDate from,LocalDate to){return query(DETAILS+" WHERE o.created_at::date BETWEEN ? AND ? ORDER BY o.id,i.id",s->{s.setObject(1,from);s.setObject(2,to);});}
+  private static final String ORDER_COLUMNS =
+    "id, customer_id, status, created_at, paid_at, shipped_at, " +
+    "delivered_at, cancelled_at, note";
+  private static final String DETAILS = """
+  SELECT o.id, o.customer_id, o.status, o.created_at, o.paid_at, o.shipped_at,
+         o.delivered_at, o.cancelled_at, o.note, c.full_name AS customer_name,
+         i.id AS item_id, i.order_id, i.product_id, i.quantity, i.unit_price,
+         p.sku AS product_sku, p.name AS product_name
+  FROM customer_orders o JOIN customers c ON c.id=o.customer_id
+  JOIN order_items i ON i.order_id=o.id JOIN products p ON p.id=i.product_id
+  """;
+  private final ConnectionProvider provider;
 
-    public CustomerOrder transition(long id,OrderStatus expected,OrderStatus target,LocalDateTime changedAt){
-        String timestampColumn=switch(target){case CANCELLED->"cancelled_at";case SHIPPED->"shipped_at";case DELIVERED->"delivered_at";default->throw new BusinessRuleException("Для перехода в PAID используется операция оплаты.");};
-        String sql="UPDATE customer_orders SET status=?, "+timestampColumn+"=? WHERE id=? AND status=? RETURNING "+ORDER_COLUMNS;
-        try(Connection c=provider.getConnection();PreparedStatement s=c.prepareStatement(sql)){s.setString(1,target.name());s.setObject(2,changedAt);s.setLong(3,id);s.setString(4,expected.name());try(ResultSet rs=s.executeQuery()){if(!rs.next())throw new BusinessRuleException("Статус заказа уже изменён или заказ не найден.");return RowMappers.toOrder(rs);}}catch(SQLException e){throw new DataAccessException("Не удалось изменить статус заказа.",e);}
+  public JdbcCustomerOrderRepository(ConnectionProvider provider) {
+    this.provider = Objects.requireNonNull(provider);
+  }
+
+  public CustomerOrder create(CustomerOrder order, List<OrderItem> items) {
+    return transaction("Не удалось создать заказ.", c -> {
+      long id = insertOrder(c, order);
+      insertItems(c, id, items);
+      return copyId(order, id);
+    });
+  }
+
+  public CustomerOrder updateNew(CustomerOrder order, List<OrderItem> items) {
+    return transaction("Не удалось изменить заказ.", c -> {
+      lockOrder(c, order.getId(), OrderStatus.NEW);
+      try (
+        PreparedStatement s = c.prepareStatement(
+          "UPDATE customer_orders SET customer_id=?,note=? " +
+          "WHERE id=? AND status='NEW'"
+        )
+      ) {
+        s.setLong(1, order.getCustomerId());
+        s.setString(2, order.getNote());
+        s.setLong(3, order.getId());
+        if (s.executeUpdate() != 1) throw new BusinessRuleException(
+          "Заказ уже изменён."
+        );
+      }
+      try (
+        PreparedStatement s = c.prepareStatement(
+          "DELETE FROM order_items WHERE order_id=?"
+        )
+      ) {
+        s.setLong(1, order.getId());
+        s.executeUpdate();
+      }
+      insertItems(c, order.getId(), items);
+      return order;
+    });
+  }
+
+  public boolean deleteById(long id) {
+    try (
+      Connection c = provider.getConnection();
+      PreparedStatement s = c.prepareStatement(
+        "DELETE FROM customer_orders WHERE id=? " +
+        "AND status IN ('NEW','CANCELLED')"
+      )
+    ) {
+      s.setLong(1, id);
+      return s.executeUpdate() == 1;
+    } catch (SQLException e) {
+      throw new DataAccessException("Не удалось удалить заказ.", e);
     }
-    public CustomerOrder pay(long id,LocalDateTime at){return stockTransaction(id,OrderStatus.NEW,OrderStatus.PAID,at,true);}
-    public CustomerOrder cancelPaid(long id,LocalDateTime at){return stockTransaction(id,OrderStatus.PAID,OrderStatus.CANCELLED,at,false);}
+  }
 
-    private CustomerOrder stockTransaction(long id,OrderStatus expected,OrderStatus target,LocalDateTime at,boolean decrement){return transaction(decrement?"Не удалось оплатить заказ.":"Не удалось отменить оплаченный заказ.",c->{lockOrder(c,id,expected);List<ItemQuantity> items=loadItems(c,id);if(items.isEmpty())throw new BusinessRuleException("Заказ не содержит позиций.");List<ItemQuantity> sorted=items.stream().sorted(Comparator.comparingLong(ItemQuantity::productId)).toList();for(ItemQuantity item:sorted)lockAndValidateProduct(c,item,decrement);for(ItemQuantity item:sorted)changeStock(c,item,decrement);String column=decrement?"paid_at":"cancelled_at";try(PreparedStatement s=c.prepareStatement("UPDATE customer_orders SET status=?, "+column+"=? WHERE id=? AND status=? RETURNING "+ORDER_COLUMNS)){s.setString(1,target.name());s.setObject(2,at);s.setLong(3,id);s.setString(4,expected.name());try(ResultSet rs=s.executeQuery()){if(!rs.next())throw new BusinessRuleException("Статус заказа изменился.");return RowMappers.toOrder(rs);}}});}
-    private void lockAndValidateProduct(Connection c,ItemQuantity item,boolean decrement)throws SQLException{try(PreparedStatement s=c.prepareStatement("SELECT active,stock_quantity FROM products WHERE id=? FOR UPDATE")){s.setLong(1,item.productId());try(ResultSet rs=s.executeQuery()){if(!rs.next())throw new EntityNotFoundException("Товар с ID "+item.productId()+" не найден.");if(decrement&&!rs.getBoolean("active"))throw new BusinessRuleException("Неактивный товар нельзя оплатить.");if(decrement&&rs.getInt("stock_quantity")<item.quantity())throw new BusinessRuleException("Недостаточно товара с ID "+item.productId()+".");}}}
-    private void changeStock(Connection c,ItemQuantity item,boolean decrement)throws SQLException{String sql=decrement?"UPDATE products SET stock_quantity=stock_quantity-? WHERE id=? AND stock_quantity>=?":"UPDATE products SET stock_quantity=stock_quantity+? WHERE id=?";try(PreparedStatement s=c.prepareStatement(sql)){s.setInt(1,item.quantity());s.setLong(2,item.productId());if(decrement)s.setInt(3,item.quantity());if(s.executeUpdate()!=1)throw new BusinessRuleException("Остаток товара изменился, повторите операцию.");}}
-    private List<ItemQuantity> loadItems(Connection c,long id)throws SQLException{List<ItemQuantity> r=new ArrayList<>();try(PreparedStatement s=c.prepareStatement("SELECT product_id,quantity FROM order_items WHERE order_id=? ORDER BY product_id")){s.setLong(1,id);try(ResultSet rs=s.executeQuery()){while(rs.next())r.add(new ItemQuantity(rs.getLong(1),rs.getInt(2)));}}return r;}
-    private void lockOrder(Connection c,long id,OrderStatus expected)throws SQLException{try(PreparedStatement s=c.prepareStatement("SELECT status FROM customer_orders WHERE id=? FOR UPDATE")){s.setLong(1,id);try(ResultSet rs=s.executeQuery()){if(!rs.next())throw new EntityNotFoundException("Заказ с ID "+id+" не найден.");OrderStatus actual=OrderStatus.valueOf(rs.getString(1));if(actual!=expected)throw new BusinessRuleException("Ожидался статус "+expected+", получен "+actual+".");}}}
-    private long insertOrder(Connection c,CustomerOrder o)throws SQLException{String sql="INSERT INTO customer_orders (customer_id,status,created_at,paid_at,shipped_at,delivered_at,cancelled_at,note) VALUES (?,?,?,?,?,?,?,?)";try(PreparedStatement s=c.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS)){s.setLong(1,o.getCustomerId());s.setString(2,o.getStatus().name());s.setObject(3,o.getCreatedAt());s.setObject(4,o.getPaidAt());s.setObject(5,o.getShippedAt());s.setObject(6,o.getDeliveredAt());s.setObject(7,o.getCancelledAt());s.setString(8,o.getNote());s.executeUpdate();try(ResultSet keys=s.getGeneratedKeys()){if(!keys.next())throw new DataAccessException("База данных не вернула ID заказа.");return keys.getLong(1);}}}
-    private void insertItems(Connection c,long orderId,List<OrderItem> items)throws SQLException{try(PreparedStatement s=c.prepareStatement("INSERT INTO order_items (order_id,product_id,quantity,unit_price) VALUES (?,?,?,?)")){for(OrderItem i:items){s.setLong(1,orderId);s.setLong(2,i.getProductId());s.setInt(3,i.getQuantity());s.setBigDecimal(4,i.getUnitPrice());s.addBatch();}s.executeBatch();}}
-    private List<CustomerOrderDetails> query(String sql,Binder binder){Map<Long,Builder> grouped=new LinkedHashMap<>();try(Connection c=provider.getConnection();PreparedStatement s=c.prepareStatement(sql)){binder.bind(s);try(ResultSet rs=s.executeQuery()){while(rs.next()){long id=rs.getLong("id");Builder b=grouped.computeIfAbsent(id,key->{try{return new Builder(RowMappers.toOrder(rs),rs.getString("customer_name"));}catch(SQLException e){throw new MappingFailure(e);}});b.items.add(new OrderItemDetails(RowMappers.toItem(rs),rs.getString("product_sku"),rs.getString("product_name")));}}return grouped.values().stream().map(Builder::build).toList();}catch(MappingFailure e){throw new DataAccessException("Не удалось прочитать заказ.",e.getCause());}catch(SQLException e){throw new DataAccessException("Не удалось загрузить заказы.",e);}}
-    private <T>T transaction(String message,SqlWork<T> work){try(Connection c=provider.getConnection()){c.setAutoCommit(false);try{T result=work.run(c);c.commit();return result;}catch(RuntimeException|SQLException e){try{c.rollback();}catch(SQLException rollback){e.addSuppressed(rollback);}if(e instanceof RuntimeException runtime)throw runtime;throw new DataAccessException(message,e);}finally{try{c.setAutoCommit(true);}catch(SQLException ignored){}}}catch(SQLException e){throw new DataAccessException(message,e);}}
-    private static CustomerOrder copyId(CustomerOrder o,long id){return new CustomerOrder(id,o.getCustomerId(),o.getStatus(),o.getCreatedAt(),o.getPaidAt(),o.getShippedAt(),o.getDeliveredAt(),o.getCancelledAt(),o.getNote());}
-    private static String likePattern(String value){return "%"+value.replace("\\","\\\\").replace("%","\\%").replace("_","\\_")+"%";}
-    private record ItemQuantity(long productId,int quantity){}
-    private static final class Builder{final CustomerOrder order;final String customer;final List<OrderItemDetails> items=new ArrayList<>();Builder(CustomerOrder order,String customer){this.order=order;this.customer=customer;}CustomerOrderDetails build(){return new CustomerOrderDetails(order,customer,items);}}
-    private static final class MappingFailure extends RuntimeException{MappingFailure(SQLException cause){super(cause);}}
-    @FunctionalInterface private interface Binder{void bind(PreparedStatement s)throws SQLException;}
-    @FunctionalInterface private interface SqlWork<T>{T run(Connection c)throws SQLException;}
+  public List<CustomerOrderDetails> findAll() {
+    return query(DETAILS + " ORDER BY o.id,i.id", s -> {});
+  }
+
+  public Optional<CustomerOrderDetails> findById(long id) {
+    return query(DETAILS + " WHERE o.id=? ORDER BY o.id,i.id", s ->
+      s.setLong(1, id)
+    )
+      .stream()
+      .findFirst();
+  }
+
+  public List<CustomerOrderDetails> findByProductName(String value) {
+    String sql =
+      DETAILS +
+      " WHERE EXISTS (SELECT 1 FROM order_items mi " +
+      "JOIN products mp ON mp.id=mi.product_id " +
+      "WHERE mi.order_id=o.id " +
+      "AND mp.name ILIKE ? ESCAPE '\\') " +
+      "ORDER BY o.id,i.id";
+    return query(sql, s -> s.setString(1, likePattern(value)));
+  }
+
+  public List<CustomerOrderDetails> findByCustomerName(String value) {
+    return query(
+      DETAILS + " WHERE c.full_name ILIKE ? ESCAPE '\\' ORDER BY o.id,i.id",
+      s -> s.setString(1, likePattern(value))
+    );
+  }
+
+  public List<CustomerOrderDetails> findByStatus(OrderStatus status) {
+    return query(DETAILS + " WHERE o.status=? ORDER BY o.id,i.id", s ->
+      s.setString(1, status.name())
+    );
+  }
+
+  public List<CustomerOrderDetails> findByCreatedAt(
+    LocalDate from,
+    LocalDate to
+  ) {
+    return query(
+      DETAILS + " WHERE o.created_at::date BETWEEN ? AND ? ORDER BY o.id,i.id",
+      s -> {
+        s.setObject(1, from);
+        s.setObject(2, to);
+      }
+    );
+  }
+
+  public CustomerOrder transition(
+    long id,
+    OrderStatus expected,
+    OrderStatus target,
+    LocalDateTime changedAt
+  ) {
+    String timestampColumn = switch (target) {
+      case CANCELLED -> "cancelled_at";
+      case SHIPPED -> "shipped_at";
+      case DELIVERED -> "delivered_at";
+      default -> throw new BusinessRuleException(
+        "Для перехода в PAID используется операция оплаты."
+      );
+    };
+    String sql =
+      "UPDATE customer_orders SET status=?, " +
+      timestampColumn +
+      "=? WHERE id=? AND status=? RETURNING " +
+      ORDER_COLUMNS;
+    try (
+      Connection c = provider.getConnection();
+      PreparedStatement s = c.prepareStatement(sql)
+    ) {
+      s.setString(1, target.name());
+      s.setObject(2, changedAt);
+      s.setLong(3, id);
+      s.setString(4, expected.name());
+      try (ResultSet rs = s.executeQuery()) {
+        if (!rs.next()) throw new BusinessRuleException(
+          "Статус заказа уже изменён или заказ не найден."
+        );
+        return RowMappers.toOrder(rs);
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException("Не удалось изменить статус заказа.", e);
+    }
+  }
+
+  public CustomerOrder pay(long id, LocalDateTime at) {
+    return stockTransaction(id, OrderStatus.NEW, OrderStatus.PAID, at, true);
+  }
+
+  public CustomerOrder cancelPaid(long id, LocalDateTime at) {
+    return stockTransaction(
+      id,
+      OrderStatus.PAID,
+      OrderStatus.CANCELLED,
+      at,
+      false
+    );
+  }
+
+  private CustomerOrder stockTransaction(
+    long id,
+    OrderStatus expected,
+    OrderStatus target,
+    LocalDateTime at,
+    boolean decrement
+  ) {
+    return transaction(
+      decrement
+        ? "Не удалось оплатить заказ."
+        : "Не удалось отменить оплаченный заказ.",
+      c -> {
+        lockOrder(c, id, expected);
+        List<ItemQuantity> items = loadItems(c, id);
+        if (items.isEmpty()) throw new BusinessRuleException(
+          "Заказ не содержит позиций."
+        );
+        List<ItemQuantity> sorted = items
+          .stream()
+          .sorted(Comparator.comparingLong(ItemQuantity::productId))
+          .toList();
+        for (ItemQuantity item : sorted)
+          lockAndValidateProduct(c, item, decrement);
+        for (ItemQuantity item : sorted) changeStock(c, item, decrement);
+        String column = decrement ? "paid_at" : "cancelled_at";
+        try (
+          PreparedStatement s = c.prepareStatement(
+            "UPDATE customer_orders SET status=?, " +
+              column +
+              "=? WHERE id=? AND status=? RETURNING " +
+              ORDER_COLUMNS
+          )
+        ) {
+          s.setString(1, target.name());
+          s.setObject(2, at);
+          s.setLong(3, id);
+          s.setString(4, expected.name());
+          try (ResultSet rs = s.executeQuery()) {
+            if (!rs.next()) throw new BusinessRuleException(
+              "Статус заказа изменился."
+            );
+            return RowMappers.toOrder(rs);
+          }
+        }
+      }
+    );
+  }
+
+  private void lockAndValidateProduct(
+    Connection c,
+    ItemQuantity item,
+    boolean decrement
+  ) throws SQLException {
+    try (
+      PreparedStatement s = c.prepareStatement(
+        "SELECT active,stock_quantity FROM products WHERE id=? FOR UPDATE"
+      )
+    ) {
+      s.setLong(1, item.productId());
+      try (ResultSet rs = s.executeQuery()) {
+        if (!rs.next()) throw new EntityNotFoundException(
+          "Товар с ID " + item.productId() + " не найден."
+        );
+        if (
+          decrement && !rs.getBoolean("active")
+        ) throw new BusinessRuleException("Неактивный товар нельзя оплатить.");
+        if (
+          decrement && rs.getInt("stock_quantity") < item.quantity()
+        ) throw new BusinessRuleException(
+          "Недостаточно товара с ID " + item.productId() + "."
+        );
+      }
+    }
+  }
+
+  private void changeStock(Connection c, ItemQuantity item, boolean decrement)
+    throws SQLException {
+    String sql = decrement
+      ? "UPDATE products SET stock_quantity=stock_quantity-? " +
+        "WHERE id=? AND stock_quantity>=?"
+      : "UPDATE products SET stock_quantity=stock_quantity+? WHERE id=?";
+    try (PreparedStatement s = c.prepareStatement(sql)) {
+      s.setInt(1, item.quantity());
+      s.setLong(2, item.productId());
+      if (decrement) s.setInt(3, item.quantity());
+      if (s.executeUpdate() != 1) throw new BusinessRuleException(
+        "Остаток товара изменился, повторите операцию."
+      );
+    }
+  }
+
+  private List<ItemQuantity> loadItems(Connection c, long id)
+    throws SQLException {
+    List<ItemQuantity> r = new ArrayList<>();
+    try (
+      PreparedStatement s = c.prepareStatement(
+        "SELECT product_id,quantity FROM order_items " +
+        "WHERE order_id=? ORDER BY product_id"
+      )
+    ) {
+      s.setLong(1, id);
+      try (ResultSet rs = s.executeQuery()) {
+        while (rs.next()) r.add(new ItemQuantity(rs.getLong(1), rs.getInt(2)));
+      }
+    }
+    return r;
+  }
+
+  private void lockOrder(Connection c, long id, OrderStatus expected)
+    throws SQLException {
+    try (
+      PreparedStatement s = c.prepareStatement(
+        "SELECT status FROM customer_orders WHERE id=? FOR UPDATE"
+      )
+    ) {
+      s.setLong(1, id);
+      try (ResultSet rs = s.executeQuery()) {
+        if (!rs.next()) throw new EntityNotFoundException(
+          "Заказ с ID " + id + " не найден."
+        );
+        OrderStatus actual = OrderStatus.valueOf(rs.getString(1));
+        if (actual != expected) throw new BusinessRuleException(
+          "Ожидался статус " + expected + ", получен " + actual + "."
+        );
+      }
+    }
+  }
+
+  private long insertOrder(Connection c, CustomerOrder o) throws SQLException {
+    String sql =
+      "INSERT INTO customer_orders " +
+      "(customer_id,status,created_at,paid_at,shipped_at,delivered_at," +
+      "cancelled_at,note) VALUES (?,?,?,?,?,?,?,?)";
+    try (
+      PreparedStatement s = c.prepareStatement(
+        sql,
+        Statement.RETURN_GENERATED_KEYS
+      )
+    ) {
+      s.setLong(1, o.getCustomerId());
+      s.setString(2, o.getStatus().name());
+      s.setObject(3, o.getCreatedAt());
+      s.setObject(4, o.getPaidAt());
+      s.setObject(5, o.getShippedAt());
+      s.setObject(6, o.getDeliveredAt());
+      s.setObject(7, o.getCancelledAt());
+      s.setString(8, o.getNote());
+      s.executeUpdate();
+      try (ResultSet keys = s.getGeneratedKeys()) {
+        if (!keys.next()) throw new DataAccessException(
+          "База данных не вернула ID заказа."
+        );
+        return keys.getLong(1);
+      }
+    }
+  }
+
+  private void insertItems(Connection c, long orderId, List<OrderItem> items)
+    throws SQLException {
+    try (
+      PreparedStatement s = c.prepareStatement(
+        "INSERT INTO order_items " +
+        "(order_id,product_id,quantity,unit_price) VALUES (?,?,?,?)"
+      )
+    ) {
+      for (OrderItem i : items) {
+        s.setLong(1, orderId);
+        s.setLong(2, i.getProductId());
+        s.setInt(3, i.getQuantity());
+        s.setBigDecimal(4, i.getUnitPrice());
+        s.addBatch();
+      }
+      s.executeBatch();
+    }
+  }
+
+  private List<CustomerOrderDetails> query(String sql, Binder binder) {
+    Map<Long, Builder> grouped = new LinkedHashMap<>();
+    try (
+      Connection c = provider.getConnection();
+      PreparedStatement s = c.prepareStatement(sql)
+    ) {
+      binder.bind(s);
+      try (ResultSet rs = s.executeQuery()) {
+        while (rs.next()) {
+          long id = rs.getLong("id");
+          Builder b = grouped.computeIfAbsent(id, key -> {
+            try {
+              return new Builder(
+                RowMappers.toOrder(rs),
+                rs.getString("customer_name")
+              );
+            } catch (SQLException e) {
+              throw new MappingFailure(e);
+            }
+          });
+          b.items.add(
+            new OrderItemDetails(
+              RowMappers.toItem(rs),
+              rs.getString("product_sku"),
+              rs.getString("product_name")
+            )
+          );
+        }
+      }
+      return grouped.values().stream().map(Builder::build).toList();
+    } catch (MappingFailure e) {
+      throw new DataAccessException(
+        "Не удалось прочитать заказ.",
+        e.getCause()
+      );
+    } catch (SQLException e) {
+      throw new DataAccessException("Не удалось загрузить заказы.", e);
+    }
+  }
+
+  private <T> T transaction(String message, SqlWork<T> work) {
+    try (Connection c = provider.getConnection()) {
+      c.setAutoCommit(false);
+      try {
+        T result = work.run(c);
+        c.commit();
+        return result;
+      } catch (RuntimeException | SQLException e) {
+        try {
+          c.rollback();
+        } catch (SQLException rollback) {
+          e.addSuppressed(rollback);
+        }
+        if (e instanceof RuntimeException runtime) throw runtime;
+        throw new DataAccessException(message, e);
+      } finally {
+        try {
+          c.setAutoCommit(true);
+        } catch (SQLException ignored) {}
+      }
+    } catch (SQLException e) {
+      throw new DataAccessException(message, e);
+    }
+  }
+
+  private static CustomerOrder copyId(CustomerOrder o, long id) {
+    return new CustomerOrder(
+      id,
+      o.getCustomerId(),
+      o.getStatus(),
+      o.getCreatedAt(),
+      o.getPaidAt(),
+      o.getShippedAt(),
+      o.getDeliveredAt(),
+      o.getCancelledAt(),
+      o.getNote()
+    );
+  }
+
+  private static String likePattern(String value) {
+    return (
+      "%" +
+      value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") +
+      "%"
+    );
+  }
+
+  private record ItemQuantity(long productId, int quantity) {}
+
+  private static final class Builder {
+
+    final CustomerOrder order;
+    final String customer;
+    final List<OrderItemDetails> items = new ArrayList<>();
+
+    Builder(CustomerOrder order, String customer) {
+      this.order = order;
+      this.customer = customer;
+    }
+
+    CustomerOrderDetails build() {
+      return new CustomerOrderDetails(order, customer, items);
+    }
+  }
+
+  private static final class MappingFailure extends RuntimeException {
+
+    MappingFailure(SQLException cause) {
+      super(cause);
+    }
+  }
+
+  @FunctionalInterface
+  private interface Binder {
+    void bind(PreparedStatement s) throws SQLException;
+  }
+
+  @FunctionalInterface
+  private interface SqlWork<T> {
+    T run(Connection c) throws SQLException;
+  }
 }

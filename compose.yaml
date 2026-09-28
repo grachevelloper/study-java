@@ -11,7 +11,11 @@ services:
       - online_store_postgres_data:/var/lib/postgresql
       - ./docker/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-online_store_db}"]
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U ${POSTGRES_USER:-postgres}
+          -d ${POSTGRES_DB:-online_store_db}
       interval: 5s
       timeout: 3s
       retries: 10
