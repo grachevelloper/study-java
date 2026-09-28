@@ -1,0 +1,50 @@
+@startuml
+hide methods
+hide stereotypes
+
+entity Customer {
+  * id : bigint <<PK>>
+  --
+  full_name : varchar(200)
+  email : varchar(320) <<UK>>
+  phone : varchar(50)
+  active : boolean
+  registered_at : timestamp
+}
+
+entity Product {
+  * id : bigint <<PK>>
+  --
+  sku : varchar(64) <<UK>>
+  name : varchar(300)
+  price : numeric(12,2)
+  stock_quantity : integer
+  active : boolean
+}
+
+entity CustomerOrder {
+  * id : bigint <<PK>>
+  --
+  customer_id : bigint <<FK>>
+  status : varchar(20)
+  created_at : timestamp
+  paid_at : timestamp
+  shipped_at : timestamp
+  delivered_at : timestamp
+  cancelled_at : timestamp
+  note : varchar(500)
+}
+
+entity OrderItem {
+  * id : bigint <<PK>>
+  --
+  order_id : bigint <<FK,UK1>>
+  product_id : bigint <<FK,UK1>>
+  quantity : integer
+  unit_price : numeric(12,2)
+}
+
+Customer ||--o{ CustomerOrder
+CustomerOrder ||--|{ OrderItem
+Product ||--o{ OrderItem
+@enduml

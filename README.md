@@ -1,94 +1,44 @@
-# Библиотечная информационная система
+# Информационная система интернет-магазина
 
-Консольное приложение на Java 21 для полного жизненного цикла заявок на выдачу книг. Данные хранятся в PostgreSQL, доступ выполняется через JDBC без Spring и ORM. Система поддерживает CRUD заявок, поиск, фильтрацию, сортировку, статистику и экспорт в `.xlsx`.
+Консольный учебный проект КР 1 на Java 21. Система хранит покупателей, товары, заказы и позиции заказов в PostgreSQL. Для заказа реализованы CRUD, поиск, фильтрация, сортировка, жизненный цикл, статистика и экспорт `.xlsx`.
 
-## Быстрый запуск
-
-Требуются JDK 21+, Maven, Docker и Docker Compose.
+## Запуск
 
 ```bash
 cp .env.example .env
 docker compose up -d --wait
-mvn clean package
-java -jar target/library-information-system.jar
-```
-
-Локальные значения по умолчанию:
-
-- `DB_URL=jdbc:postgresql://localhost:5432/library_db`;
-- `DB_USER=postgres`;
-- `DB_PASSWORD=postgres`;
-- `POSTGRES_DB=library_db`;
-- `POSTGRES_USER=postgres`;
-- `POSTGRES_PASSWORD=postgres`.
-
-Java-приложение автоматически читает `DB_URL`, `DB_USER`, `DB_PASSWORD` из локального `.env`. Переменные окружения процесса имеют приоритет над файлом. Путь к другому env-файлу можно передать через `DB_ENV_FILE`. Docker Compose читает из того же файла параметры `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`. Локальный `.env` исключён из Git, а `.env.example` служит безопасным шаблоном.
-
-## Команды разработки
-
-```bash
 mvn clean test
 mvn clean package
-docker compose logs -f db
-docker compose down
+java -jar target/online-store.jar
 ```
 
-Полный сброс локальной БД удаляет все её данные:
+`docker compose down -v` полностью удаляет локальную БД и её данные. При следующем запуске схема и seed создаются заново.
 
-```bash
-docker compose down -v
-docker compose up -d --wait
-```
-
-Интеграционные тесты по умолчанию используют Testcontainers. Для окружения, в котором Maven не имеет доступа к Docker socket, можно явно запустить их на отдельной тестовой PostgreSQL (её схема `public` будет пересоздана):
-
-```bash
-docker compose exec db createdb -U postgres library_test_db
-TEST_DB_URL=jdbc:postgresql://localhost:5432/library_test_db \
-TEST_DB_USER=postgres \
-TEST_DB_PASSWORD=postgres \
-mvn clean test
-```
+Переменные `DB_URL`, `DB_USER`, `DB_PASSWORD` имеют приоритет над `.env`. `DB_ENV_FILE` позволяет выбрать другой dotenv-файл. Для integration-тестов без доступа Testcontainers к Docker можно создать отдельную БД и передать `TEST_DB_URL`, `TEST_DB_USER`, `TEST_DB_PASSWORD`; тесты пересоздают в ней схему `public`, поэтому нельзя указывать рабочую БД.
 
 ## Архитектура
 
 ```text
 Console UI -> Service -> Repository interface -> JDBC -> PostgreSQL
-                              |
-                              +-> DataExporter -> Apache POI
 ```
 
-- `ui` читает ввод и печатает меню, но не содержит SQL;
-- `service` проверяет данные и бизнес-правила;
-- `repository` задаёт интерфейсы, а `repository.jdbc` содержит параметризованный SQL;
-- `model` содержит неизменяемые предметные объекты и enum;
-- `export` создаёт Excel-файлы в каталоге `exports`;
-- `Main` только проверяет подключение и собирает зависимости.
+- `Customer` — покупатель.
+- `Product` — товар с текущей ценой и остатком.
+- `CustomerOrder` — основная сущность.
+- `OrderItem` — позиция заказа; хранит снимок цены, поэтому изменение каталога не меняет старый заказ.
 
-## Основные бизнес-правила
+Жизненный цикл: `NEW -> PAID -> SHIPPED -> DELIVERED`. Из `NEW` и `PAID` можно перейти в `CANCELLED`. При оплате остатки всех позиций уменьшаются в одной транзакции; при отмене оплаченного заказа восстанавливаются в одной транзакции. После отправки отмена запрещена.
 
-- заявку создаёт только активный существующий читатель на существующую книгу;
-- у читателя не бывает двух активных заявок на одну книгу;
-- разрешены только переходы `CREATED -> APPROVED|REJECTED|CANCELLED`, `APPROVED -> ISSUED|CANCELLED`, `ISSUED -> RETURNED`;
-- выдача возможна при наличии экземпляра и атомарно уменьшает остаток;
-- срок возврата — 30 календарных дней после выдачи;
-- возврат атомарно увеличивает остаток;
-- редактируется только `CREATED`, удаляются только `CREATED`, `REJECTED`, `CANCELLED`;
-- обязательные строки не могут быть пустыми, примечание ограничено 500 символами.
+## Проверки и экспорт
 
-Эти правила проверяет сервисный слой; ключевые инварианты дополнительно защищены `CHECK`, внешними ключами и частичным уникальным индексом PostgreSQL.
+Консоль повторно запрашивает некорректные значения вместо передачи их в сервис или БД. Проверяются диапазоны меню и ID, формат email/телефона/SKU, длина и управляющие символы в тексте, цена с максимум двумя знаками после запятой, остаток и количество до `1 000 000`, даты с четырёхзначным годом и не более 100 позиций в заказе. Строки длиннее 4096 символов отбрасываются целиком. Символы `%`, `_` и `\` в поиске трактуются буквально, SQL выполняется через параметры.
 
-## Экспорт
+```bash
+mvn test
+mvn package
+git diff --check
+```
 
-Пункт меню «Экспорт в Excel» создаёт файл `exports/library-export-yyyyMMdd-HHmmss.xlsx` с листами `Readers`, `Books`, `Requests`, `Statistics`. В репозитории также находится проверенный пример `exports/library-export-example.xlsx`.
+Excel-экспорт создаётся из меню и содержит листы `Customers`, `Products`, `Orders`, `Order Items`, `Statistics`. Проверенный пример находится в `exports/online-store-export-example.xlsx`.
 
-## Что показать на защите
-
-- **Инкапсуляция:** поля моделей приватные и доступны через getters; объекты создаются конструкторами.
-- **Интерфейсы и полиморфизм:** сервисы зависят от `ReaderRepository`, `BookRepository`, `BookIssueRequestRepository`, `StatisticsRepository`; Excel реализует `DataExporter`.
-- **Коллекции:** списки используются для выборок, `EnumMap` — для статистики статусов, Stream API и `Comparator` — для сортировки.
-- **Исключения:** предметные ошибки, отсутствие сущности, JDBC и экспорт представлены собственными исключениями и обрабатываются на границе UI.
-- **JDBC:** ресурсы закрываются через `try-with-resources`, составные операции используют транзакции и row locks.
-- **`Statement` и `PreparedStatement`:** `Statement` подходит для заранее известных служебных SQL-скриптов; все значения пользователя передаются только параметрами `PreparedStatement`, что предотвращает SQL injection и корректно кодирует типы.
-- **Целостность:** продемонстрировать запрет дубликата активной заявки, выдачу последнего экземпляра, возврат, запрещённый переход и rollback.
-- **Артефакты:** `compose.yaml`, SQL schema/seed, [ER-диаграмма](docs/er-diagram.puml), тесты, запускаемый JAR и Excel-пример.
+Для защиты проекта полезно показать: связи четырёх таблиц, `PreparedStatement`, `try-with-resources`, интерфейсы репозиториев, сервисные проверки, блокировки `FOR UPDATE`, rollback, Stream-сортировку, `EnumMap` статистики и чтение созданного XLSX через Apache POI.

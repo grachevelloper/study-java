@@ -1,34 +1,36 @@
-# Library Information System Implementation Plan
+# Online Store Migration Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Реализовать консольную библиотечную информационную систему для полного жизненного цикла заявки на выдачу книги в соответствии с КР 1.
+**Goal:** Переделать существующую библиотечную систему в консольную информационную систему интернет-магазина. Основная сущность — заказ покупателя (`CustomerOrder`), который содержит несколько позиций (`OrderItem`).
 
-**Architecture:** Слои `Console UI -> Service -> Repository interface -> JDBC -> PostgreSQL`. Сервис владеет бизнес-правилами; JDBC-репозитории владеют SQL и транзакциями; интерфейсы репозиториев и экспортера дают требуемый полиморфизм.
+**Architecture:** Сохранить существующие слои `Console UI -> Service -> Repository interface -> JDBC -> PostgreSQL`. Сервис отвечает за проверки и переходы статусов; JDBC-репозитории — за SQL и транзакции; UI не содержит SQL и бизнес-правил.
 
-**Tech Stack:** Java 21, Maven, PostgreSQL 18.4, Docker Compose, JDBC/pgJDBC 42.7.13, Apache POI 5.5.1, JUnit 5.14.3, Testcontainers 1.21.3.
+**Tech Stack:** Сохранить Java 21, Maven, PostgreSQL 18.4, Docker Compose, JDBC/pgJDBC 42.7.13, Apache POI 5.5.1, JUnit 5.14.3 и Testcontainers 1.21.3.
 
-**Spec:** `docs/library-system-spec.md`
+**Scope:** Изменять существующие файлы и классы там, где это возможно. Не создавать второй проект рядом и не сохранять параллельно библиотечную предметную область.
 
 ## Global Constraints
 
-- Предметная область и имена в коде: библиотека, читатель, книга, заявка на выдачу.
-- Основная сущность: `BookIssueRequest`; для неё обязателен полный CRUD, поиск, фильтрация и сортировка.
-- Java 21; Maven; PostgreSQL запускается через Docker Compose.
-- Только JDBC: без Spring, ORM и in-memory БД в production-коде.
-- Все SQL-параметры передаются через `PreparedStatement`; JDBC-ресурсы закрываются через `try-with-resources`.
-- `Main` только собирает зависимости и запускает UI; SQL и бизнес-правила в UI запрещены.
-- Срок возврата равен 30 календарным дням после выдачи.
-- Не добавлять функции КР 2–4: JavaFX, REST API, Spring или Android.
-- Не коммитить, не пушить и не менять согласованную спецификацию без явного запроса владельца проекта.
+- Предметная область: интернет-магазин; связанные сущности — покупатель, товар, заказ и позиция заказа.
+- Основная сущность: `CustomerOrder`; полный CRUD, поиск, фильтрация и сортировка реализуются только для неё.
+- Один заказ содержит одну или несколько позиций; один товар не может повторяться в одном заказе.
+- Статусы: `NEW -> PAID -> SHIPPED -> DELIVERED`; переход в `CANCELLED` разрешён из `NEW` и `PAID`.
+- Возвраты товаров, платёжные интеграции и службы доставки не реализуются.
+- Остатки уменьшаются атомарно при `NEW -> PAID`. При `PAID -> CANCELLED` остатки атомарно восстанавливаются.
+- Заказ в `NEW` можно изменять. Удалять можно только `NEW` и `CANCELLED`; завершённые заказы сохраняются в истории.
+- Цена товара копируется в `OrderItem.unitPrice` при создании или редактировании заказа, чтобы изменение каталога не меняло сумму старого заказа.
+- Сохраняются Java 21, Maven, PostgreSQL в Docker Compose и JDBC без Spring/ORM.
+- Все SQL-параметры передаются через `PreparedStatement`; ресурсы закрываются через `try-with-resources`.
+- Не добавлять JavaFX, REST API, Spring, авторизацию, корзину, промокоды и другие функции вне КР 1.
+- Не коммитить и не пушить без отдельного запроса владельца проекта.
 
 ## Task Order and Agent Handoff
 
-Задачи выполняются по порядку. Один агент реализует одну задачу, запускает её проверки и передаёт результат на review до начала следующей. Задачи 3 и 4 можно выполнять параллельно только после Task 2: у них разные production-файлы, но каждый агент не должен менять `pom.xml` или интерфейсы без согласования.
+Задачи выполняются последовательно. После каждой задачи агент запускает указанные проверки и передаёт изменения на review. Не начинать следующую задачу при красных проверках текущей.
 
 ```text
-Task 1 -> Task 2 -> Task 3 ----+
-                  -> Task 4 ----+-> Task 5 -> Task 6 -> Task 7 -> Task 8 -> Task 9
+Task 1 -> Task 2 -> Task 3 -> Task 4 -> Task 5 -> Task 6 -> Task 7 -> Task 8 -> Task 9
 ```
 
 ## Target File Structure
@@ -40,692 +42,525 @@ Task 1 -> Task 2 -> Task 3 ----+
 ├── compose.yaml
 ├── pom.xml
 ├── README.md
-├── docker/db/init/01-schema.sql
-├── docker/db/init/02-seed.sql
-├── docs/er-diagram.puml
+├── docker/db/init/{01-schema.sql,02-seed.sql}
+├── docs/{online-store-spec.md,online-store-er-diagram.puml}
 ├── exports/.gitkeep
-├── src/main/java/ru/mirea/library/
+├── src/main/java/ru/mirea/store/
 │   ├── Main.java
 │   ├── config/{ConnectionProvider,DatabaseConfig,DatabaseManager}.java
 │   ├── exception/{BusinessRuleException,DataAccessException,EntityNotFoundException,ExportException}.java
-│   ├── export/{DataExporter,ExcelExporter,LibraryExportData}.java
-│   ├── model/{Book,BookIssueRequest,BookIssueRequestDetails,Reader,RequestSortField,RequestStatus,SortDirection,SystemStatistics}.java
-│   ├── repository/{BookIssueRequestRepository,BookRepository,ReaderRepository,StatisticsRepository}.java
-│   ├── repository/jdbc/{JdbcBookIssueRequestRepository,JdbcBookRepository,JdbcReaderRepository,JdbcStatisticsRepository,RowMappers}.java
-│   ├── service/{BookIssueRequestService,BookService,ReaderService,StatisticsService}.java
+│   ├── export/{DataExporter,ExcelExporter,StoreExportData}.java
+│   ├── model/{Customer,Product,CustomerOrder,OrderItem,OrderItemDetails,CustomerOrderDetails,OrderStatus,OrderSortField,SortDirection,SystemStatistics}.java
+│   ├── repository/{CustomerRepository,ProductRepository,CustomerOrderRepository,StatisticsRepository}.java
+│   ├── repository/jdbc/{JdbcCustomerRepository,JdbcProductRepository,JdbcCustomerOrderRepository,JdbcStatisticsRepository,RowMappers}.java
+│   ├── service/{CustomerService,ProductService,CustomerOrderService,StatisticsService}.java
 │   └── ui/{ConsoleApplication,ConsoleInput,ConsolePrinter}.java
-└── src/test/java/ru/mirea/library/
+└── src/test/java/ru/mirea/store/
     ├── export/ExcelExporterTest.java
-    ├── integration/{JdbcBookIssueRequestRepositoryTest,JdbcCatalogRepositoryTest}.java
-    ├── model/RequestStatusTest.java
-    ├── service/{BookIssueRequestServiceTest,RequestSortingTest}.java
-    └── ui/ConsoleInputTest.java
+    ├── integration/{JdbcCustomerOrderRepositoryTest,JdbcCatalogRepositoryTest}.java
+    ├── model/OrderStatusTest.java
+    ├── service/{CustomerOrderServiceTest,OrderSortingTest}.java
+    └── ui/{ConsoleApplicationTest,ConsoleInputTest}.java
 ```
+
+После переноса удалить старые Java-пакеты `ru.mirea.library` и устаревшие файлы документации/экспорта, когда их замены готовы и проверены.
 
 ## Review Focus
 
-- Два одновременных запроса на последний экземпляр: только один переводится в `ISSUED`, остаток не становится отрицательным — Task 5.
-- Повторная активная заявка того же читателя на ту же книгу отклоняется и сервисом, и частичным уникальным индексом — Tasks 1, 4, 5.
-- Пустые строки, `abc` вместо ID и неверная дата не завершают приложение — Tasks 4 и 8.
-- Ошибка посередине выдачи или возврата откатывает и заявку, и остаток — Task 5.
-- Excel-файл после экспорта открывается, содержит четыре листа и строки из PostgreSQL — Task 7.
+- Заказ невозможно создать без покупателя и хотя бы одной корректной позиции.
+- Две позиции одного товара объединяются или отклоняются; дубликаты в БД запрещены `UNIQUE (order_id, product_id)`.
+- Два заказа на последний товар: оплатиться может только один, остаток не становится отрицательным.
+- Ошибка во время оплаты или отмены откатывает и статус заказа, и все изменения остатков.
+- `PAID -> CANCELLED` восстанавливает каждую позицию ровно один раз; после `SHIPPED` отмена запрещена.
+- Изменение цены товара не меняет `unitPrice` и итог ранее созданного заказа.
+- Пустой ввод, неверные ID, количество, цена и дата не завершают приложение.
+- Excel открывается и содержит данные покупателей, товаров, заказов, позиций и статистики.
 
 ---
 
-### Task 1: Maven Project and Reproducible PostgreSQL
+### Task 1: Rename Project and Replace PostgreSQL Schema
 
 **Owner:** foundation/database agent
 **Depends on:** none
 
 **Files:**
 
-- Create: `pom.xml`
-- Create: `.gitignore`
-- Create: `.env.example`
-- Create: `compose.yaml`
-- Create: `docker/db/init/01-schema.sql`
-- Create: `docker/db/init/02-seed.sql`
+- Modify: `pom.xml`, `.env.example`, `compose.yaml`
+- Replace: `docker/db/init/01-schema.sql`, `docker/db/init/02-seed.sql`
 
-**Interfaces:**
+- [ ] **Step 1: Rename the build artifact and package root**
 
-- Produces database `library_db` on `localhost:5432`.
-- Produces tables `readers`, `books`, `book_issue_requests` and deterministic seed IDs.
-- Produces Maven package root `ru.mirea.library` and Java release 21.
+Change Maven coordinates/name from the library system to the online store, set the shaded main class to `ru.mirea.store.Main`, and set the final JAR name to `online-store`. Keep all dependency and plugin versions unchanged unless compilation requires a correction.
 
-- [ ] **Step 1: Create Maven configuration**
+- [ ] **Step 2: Replace the database schema**
 
-Set these exact versions/properties in `pom.xml`:
+Use database `online_store_db` and tables:
 
-```xml
-<maven.compiler.release>21</maven.compiler.release>
-<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-<postgresql.version>42.7.13</postgresql.version>
-<poi.version>5.5.1</poi.version>
-<junit.version>5.14.3</junit.version>
-<testcontainers.version>1.21.3</testcontainers.version>
+```text
+customers
+  id, full_name, email UNIQUE, phone, active, registered_at
+
+products
+  id, sku UNIQUE, name, price numeric(12,2), stock_quantity, active
+
+customer_orders
+  id, customer_id FK, status, created_at,
+  paid_at, shipped_at, delivered_at, cancelled_at, note
+
+order_items
+  id, order_id FK, product_id FK, quantity, unit_price numeric(12,2)
 ```
 
-Dependencies: `org.postgresql:postgresql`, `org.apache.poi:poi-ooxml`, test-scoped `org.junit.jupiter:junit-jupiter`, `org.testcontainers:junit-jupiter`, `org.testcontainers:postgresql`. Configure Compiler Plugin 3.16.0, Surefire 3.6.0 and Shade 3.6.2 with main class `ru.mirea.library.Main`; set build final name to `library-information-system`.
+Required constraints:
 
-- [ ] **Step 2: Define the schema with database-level invariants**
+- `status IN ('NEW','PAID','SHIPPED','DELIVERED','CANCELLED')`;
+- `price > 0`, `unit_price > 0`, `quantity > 0`, `stock_quantity >= 0`;
+- `UNIQUE (order_id, product_id)`;
+- customers/products use `ON DELETE RESTRICT` from referenced data;
+- items use `ON DELETE CASCADE` from their order;
+- status timestamps are consistent: each later lifecycle timestamp is present only when its status has been reached; cancelled orders have `cancelled_at` and no shipped/delivered timestamp.
 
-The request status constraint and active-request index must be equivalent to:
+- [ ] **Step 3: Replace seed data**
 
-```sql
-status varchar(20) NOT NULL DEFAULT 'CREATED'
-    CHECK (status IN ('CREATED','APPROVED','ISSUED','RETURNED','REJECTED','CANCELLED'))
-```
+Insert 5 customers, 8 products, at least 8 orders, and their items. Include all five statuses, multi-item orders, one inactive product/customer, and prices/stock suitable for search, statistics and payment tests. Seeded stock must already reflect every `PAID` and `SHIPPED` order that reserved stock; `DELIVERED` orders also keep stock deducted.
 
-```sql
-CREATE UNIQUE INDEX uq_active_reader_book_request
-ON book_issue_requests(reader_id, book_id)
-WHERE status IN ('CREATED', 'APPROVED', 'ISSUED');
-```
+- [ ] **Step 4: Update Docker and environment defaults**
 
-Add date consistency checks: issue/due dates are both null before issuance and both non-null for `ISSUED`/`RETURNED`; `due_on = issued_on + 30`; `returned_on >= issued_on` when present. Add `ON DELETE RESTRICT` foreign keys and copy-count checks.
+Keep the existing PostgreSQL image and healthcheck. Rename the database, volume and JDBC defaults consistently in Compose and `.env.example`. Do not expose or track real credentials.
 
-- [ ] **Step 3: Add deterministic seed data**
-
-Insert 5 readers, 8 books and 10 requests spanning at least `CREATED`, `APPROVED`, `ISSUED`, `RETURNED`, `REJECTED`, and `CANCELLED`. Ensure `available_copies` agrees with seeded `ISSUED` requests and include one overdue `ISSUED` row.
-
-- [ ] **Step 4: Configure Docker Compose**
-
-Use image `postgres:18.4-alpine3.23`, named volume `library_postgres_data`, port `5432:5432`, `POSTGRES_DB=library_db`, `POSTGRES_USER=postgres`, password from `${POSTGRES_PASSWORD:-postgres}`, init mount `./docker/db/init:/docker-entrypoint-initdb.d:ro`, and healthcheck:
-
-```yaml
-test: ["CMD-SHELL", "pg_isready -U postgres -d library_db"]
-interval: 5s
-timeout: 3s
-retries: 10
-```
-
-- [ ] **Step 5: Verify schema and seed data**
-
-Run:
+- [ ] **Step 5: Verify the schema**
 
 ```bash
-docker compose config
+docker compose down -v
 docker compose up -d --wait
-docker compose exec -T db psql -U postgres -d library_db -c "SELECT COUNT(*) FROM readers;"
-docker compose exec -T db psql -U postgres -d library_db -c "SELECT COUNT(*) FROM books;"
-docker compose exec -T db psql -U postgres -d library_db -c "SELECT COUNT(*) FROM book_issue_requests;"
+docker compose exec -T db psql -U postgres -d online_store_db -c "SELECT COUNT(*) FROM customers;"
+docker compose exec -T db psql -U postgres -d online_store_db -c "SELECT COUNT(*) FROM products;"
+docker compose exec -T db psql -U postgres -d online_store_db -c "SELECT COUNT(*) FROM customer_orders;"
+docker compose exec -T db psql -U postgres -d online_store_db -c "SELECT COUNT(*) FROM order_items;"
 ```
 
-Expected counts: `5`, `8`, `10`. Verify an invalid status and negative copy count are rejected inside a transaction that is rolled back.
+Inside rolled-back transactions, verify rejection of an invalid status, negative stock, zero quantity and duplicate product in one order.
 
 ---
 
-### Task 2: Domain Model, Exceptions, and Contracts
+### Task 2: Replace Domain Model and Repository Contracts
 
 **Owner:** domain agent
 **Depends on:** Task 1
 
 **Files:**
 
-- Create: all files in `model/`, `exception/`, and `repository/` listed in Target File Structure
-- Create: `src/main/java/ru/mirea/library/config/ConnectionProvider.java`
-- Create: `src/test/java/ru/mirea/library/model/RequestStatusTest.java`
+- Move/replace: existing `ru/mirea/library` model, exception and repository contracts under `ru/mirea/store`
+- Replace: `RequestStatusTest` with `OrderStatusTest`
 
-**Interfaces:**
-
-- Produces immutable domain classes with private fields, constructors and getters.
-- Produces repository contracts consumed by Tasks 3–6.
-
-- [ ] **Step 1: Write the status-transition test**
+- [ ] **Step 1: Implement and test order transitions**
 
 ```java
-@ParameterizedTest
-@MethodSource("allowedTransitions")
-void allowsOnlyDeclaredTransitions(RequestStatus from, RequestStatus to) {
-    assertTrue(from.canTransitionTo(to));
-}
+public enum OrderStatus {
+    NEW, PAID, SHIPPED, DELIVERED, CANCELLED;
 
-@Test
-void terminalStatusesHaveNoOutgoingTransitions() {
-    assertAll(
-        () -> assertTrue(RequestStatus.RETURNED.allowedTargets().isEmpty()),
-        () -> assertTrue(RequestStatus.REJECTED.allowedTargets().isEmpty()),
-        () -> assertTrue(RequestStatus.CANCELLED.allowedTargets().isEmpty())
-    );
-}
-```
-
-Run `mvn -Dtest=RequestStatusTest test`; expect compilation failure because `RequestStatus` does not exist.
-
-- [ ] **Step 2: Implement `RequestStatus`**
-
-```java
-public enum RequestStatus {
-    CREATED, APPROVED, ISSUED, RETURNED, REJECTED, CANCELLED;
-
-    public Set<RequestStatus> allowedTargets() {
+    public Set<OrderStatus> allowedTargets() {
         return switch (this) {
-            case CREATED -> Collections.unmodifiableSet(
-                EnumSet.of(APPROVED, REJECTED, CANCELLED));
-            case APPROVED -> Collections.unmodifiableSet(
-                EnumSet.of(ISSUED, CANCELLED));
-            case ISSUED -> Collections.unmodifiableSet(EnumSet.of(RETURNED));
-            case RETURNED, REJECTED, CANCELLED -> Set.of();
+            case NEW -> Set.of(PAID, CANCELLED);
+            case PAID -> Set.of(SHIPPED, CANCELLED);
+            case SHIPPED -> Set.of(DELIVERED);
+            case DELIVERED, CANCELLED -> Set.of();
         };
     }
-    public boolean canTransitionTo(RequestStatus target) { return allowedTargets().contains(target); }
 }
 ```
 
-Use `EnumSet` and return an unmodifiable set.
+Test every allowed transition, representative forbidden transitions, and terminal statuses.
 
-- [ ] **Step 3: Implement domain classes**
+- [ ] **Step 2: Replace the entity classes**
 
-Create conventional classes, not persistence-aware Active Record objects. Required constructors/getters:
+Required domain data:
 
 ```java
-Reader(long id, String libraryCardNumber, String fullName, String email,
-       boolean active, LocalDate registeredAt)
-
-Book(long id, String isbn, String title, String author, int publicationYear,
-     int totalCopies, int availableCopies)
-
-BookIssueRequest(long id, long readerId, long bookId, RequestStatus status,
-                 LocalDateTime requestedAt, LocalDate issuedOn, LocalDate dueOn,
-                 LocalDate returnedOn, String note)
+Customer(id, fullName, email, phone, active, registeredAt)
+Product(id, sku, name, price, stockQuantity, active)
+CustomerOrder(id, customerId, status, createdAt,
+              paidAt, shippedAt, deliveredAt, cancelledAt, note)
+OrderItem(id, orderId, productId, quantity, unitPrice)
 ```
 
-`BookIssueRequestDetails` composes a request with `readerName`, `bookTitle`, and `bookAuthor`. `RequestSortField` has `REQUESTED_AT` and `DUE_ON`; `SortDirection` has `ASCENDING` and `DESCENDING`. `SystemStatistics` contains `readerCount`, `bookTitleCount`, `totalCopyCount`, `availableCopyCount`, `requestCount`, `Map<RequestStatus, Long> requestsByStatus`, and `overdueRequestCount`. Implement value-based `equals`/`hashCode` for the three domain entities so repository round-trip tests compare values rather than object identity.
+Use `BigDecimal` for money. `OrderItemDetails` adds the product name/SKU. `CustomerOrderDetails` contains the order, customer name, a list of item details and a calculated total. Return item lists as defensive unmodifiable copies. Implement value-based `equals`/`hashCode` for persisted entities.
 
-- [ ] **Step 4: Define exact repository contracts**
+`OrderSortField` contains `CREATED_AT` and `TOTAL_AMOUNT`; keep `SortDirection` with `ASCENDING`/`DESCENDING`.
+
+- [ ] **Step 3: Replace repository contracts**
 
 ```java
-public interface ReaderRepository {
-    Reader save(Reader reader);
-    List<Reader> findAll();
-    Optional<Reader> findById(long id);
+interface CustomerRepository {
+    Customer save(Customer customer);
+    List<Customer> findAll();
+    Optional<Customer> findById(long id);
 }
 
-public interface BookRepository {
-    Book save(Book book);
-    List<Book> findAll();
-    Optional<Book> findById(long id);
+interface ProductRepository {
+    Product save(Product product);
+    List<Product> findAll();
+    Optional<Product> findById(long id);
 }
 
-public interface BookIssueRequestRepository {
-    BookIssueRequest create(BookIssueRequest request);
-    List<BookIssueRequestDetails> findAll();
-    Optional<BookIssueRequestDetails> findById(long id);
-    BookIssueRequest updateDraft(BookIssueRequest request);
+interface CustomerOrderRepository {
+    CustomerOrder create(CustomerOrder order, List<OrderItem> items);
+    List<CustomerOrderDetails> findAll();
+    Optional<CustomerOrderDetails> findById(long id);
+    CustomerOrder updateNew(CustomerOrder order, List<OrderItem> items);
     boolean deleteById(long id);
-    List<BookIssueRequestDetails> findByBookTitle(String query);
-    List<BookIssueRequestDetails> findByReaderName(String query);
-    List<BookIssueRequestDetails> findByStatus(RequestStatus status);
-    List<BookIssueRequestDetails> findByRequestedAt(LocalDate from, LocalDate to);
-    boolean existsActive(long readerId, long bookId, Long excludedRequestId);
-    BookIssueRequest transition(long id, RequestStatus expected, RequestStatus target);
-    BookIssueRequest issue(long id, LocalDate issuedOn, LocalDate dueOn);
-    BookIssueRequest returnBook(long id, LocalDate returnedOn);
-}
-
-public interface StatisticsRepository {
-    SystemStatistics load(LocalDate today);
-}
-
-@FunctionalInterface
-public interface ConnectionProvider {
-    Connection getConnection() throws SQLException;
+    List<CustomerOrderDetails> findByProductName(String query);
+    List<CustomerOrderDetails> findByCustomerName(String query);
+    List<CustomerOrderDetails> findByStatus(OrderStatus status);
+    List<CustomerOrderDetails> findByCreatedAt(LocalDate from, LocalDate to);
+    CustomerOrder transition(long id, OrderStatus expected, OrderStatus target, LocalDateTime changedAt);
+    CustomerOrder pay(long id, LocalDateTime paidAt);
+    CustomerOrder cancelPaid(long id, LocalDateTime cancelledAt);
 }
 ```
 
-- [ ] **Step 5: Add custom exceptions and run the model tests**
+Keep `StatisticsRepository`, `ConnectionProvider` and custom exception roles, renaming only library-specific text.
 
-All custom exceptions extend `RuntimeException`, retain the cause where applicable, and expose message/cause constructors. Run `mvn -Dtest=RequestStatusTest test`; expect PASS.
+- [ ] **Step 4: Run model tests**
+
+```bash
+mvn -Dtest=OrderStatusTest test
+```
 
 ---
 
-### Task 3: JDBC Infrastructure and Catalog Repositories
+### Task 3: Adapt JDBC Configuration and Catalog Repositories
 
 **Owner:** JDBC catalog agent
 **Depends on:** Task 2
 
 **Files:**
 
-- Create: `config/DatabaseConfig.java`
-- Create: `config/DatabaseManager.java`
-- Create: `repository/jdbc/RowMappers.java`
-- Create: `repository/jdbc/JdbcReaderRepository.java`
-- Create: `repository/jdbc/JdbcBookRepository.java`
-- Create: `integration/JdbcCatalogRepositoryTest.java`
+- Modify/move: `DatabaseConfig`, `DatabaseManager`, `RowMappers`
+- Replace: reader/book repositories with customer/product repositories
+- Rewrite: `JdbcCatalogRepositoryTest`
 
-**Interfaces:**
+- [ ] **Step 1: Change configuration defaults**
 
-- Consumes: `ConnectionProvider`, `ReaderRepository`, `BookRepository`.
-- Produces: JDBC implementations for reader and book services.
+Default URL becomes `jdbc:postgresql://localhost:5432/online_store_db`; preserve `.env`, `DB_ENV_FILE`, and environment-variable precedence already implemented by the project.
 
-- [ ] **Step 1: Write Testcontainers integration tests**
+- [ ] **Step 2: Replace row mappings**
 
-Use a shared `PostgreSQLContainer<>("postgres:18.4-alpine3.23")`, apply `01-schema.sql`, and assert:
+Provide mappings for customer, product, order, item and joined detail rows. Read/write money as `BigDecimal` without converting through `double`.
 
-```java
-assertEquals(savedReader, repository.findById(savedReader.getId()).orElseThrow());
-assertEquals(6, repository.findAll().size());
-assertThrows(DataAccessException.class, () -> repository.save(duplicateEmailReader));
+- [ ] **Step 3: Replace catalog repositories**
+
+Adapt existing JDBC patterns rather than adding a second repository layer. Inserts use generated keys, all user values use parameters, and SQL errors retain their causes.
+
+- [ ] **Step 4: Rewrite integration tests**
+
+Cover customer/product insert and read, duplicate email, duplicate SKU, invalid price and invalid stock. Apply the new schema to an isolated Testcontainers database.
+
+```bash
+mvn -Dtest=JdbcCatalogRepositoryTest test
 ```
-
-Add equivalent tests for book insert/read and duplicate ISBN. Run the test and expect failure before implementations exist.
-
-- [ ] **Step 2: Implement environment configuration**
-
-`DatabaseConfig.fromEnvironment()` reads `DB_URL`, `DB_USER`, `DB_PASSWORD` with local defaults:
-
-```text
-jdbc:postgresql://localhost:5432/library_db
-postgres
-postgres
-```
-
-Reject blank values with a clear `IllegalArgumentException`. `DatabaseManager` implements `ConnectionProvider` using `DriverManager.getConnection(config.url(), config.user(), config.password())`.
-
-- [ ] **Step 3: Implement shared row mapping**
-
-`RowMappers` provides package-private static functions `toReader(ResultSet)`, `toBook(ResultSet)`, `toRequest(ResultSet)`, and `toRequestDetails(ResultSet)`. Convert status with `RequestStatus.valueOf(resultSet.getString("status"))` and dates via `getObject(column, LocalDate.class)` / `LocalDateTime.class`.
-
-- [ ] **Step 4: Implement reader and book repositories**
-
-Every method opens its own connection and statement with nested `try-with-resources`. Inserts use `RETURN_GENERATED_KEYS`. No SQL string includes user input. Translate `SQLException` to `DataAccessException` with a user-safe message and retained cause.
-
-- [ ] **Step 5: Run catalog integration tests**
-
-Run `mvn -Dtest=JdbcCatalogRepositoryTest test`; expect PASS.
 
 ---
 
-### Task 4: Services for Readers, Books, and Draft Requests
+### Task 4: Replace Services and Implement NEW Order CRUD
 
 **Owner:** service agent
-**Depends on:** Task 2
+**Depends on:** Task 3
 
 **Files:**
 
-- Create: `service/ReaderService.java`
-- Create: `service/BookService.java`
-- Create: `service/BookIssueRequestService.java`
-- Create: `service/BookIssueRequestServiceTest.java`
+- Replace: reader/book/request services with customer/product/order services
+- Rewrite: `CustomerOrderServiceTest`
 
-**Interfaces:**
+- [ ] **Step 1: Test service rules using in-test fakes**
 
-- Consumes repository interfaces only; must not depend on JDBC classes.
-- Produces validated use cases for the UI.
+Cover:
 
-- [ ] **Step 1: Write service tests with small in-test fakes**
+- customer must exist and be active;
+- every product must exist and be active;
+- an order contains at least one item;
+- item quantity is positive and product IDs are unique;
+- note is trimmed, optional and at most 500 characters;
+- only `NEW` orders can be edited;
+- only `NEW` and `CANCELLED` orders can be deleted;
+- item price is copied from the current product price;
+- changing a product price later does not alter the saved order item.
 
-Cover these exact cases using `Clock.fixed(Instant.parse("2026-09-27T09:00:00Z"), ZoneOffset.UTC)`:
+- [ ] **Step 2: Implement customer and product use cases**
 
-```java
-assertThrows(BusinessRuleException.class,
-    () -> service.createRequest(inactiveReaderId, bookId, "note"));
+Provide create/list/get methods only. Validate nonblank names, email, SKU, positive price and nonnegative initial stock. New records are active.
 
-assertThrows(EntityNotFoundException.class,
-    () -> service.createRequest(9999L, bookId, "note"));
-
-assertThrows(BusinessRuleException.class,
-    () -> service.createRequest(readerId, bookId, "x".repeat(501)));
-
-assertEquals(RequestStatus.CREATED,
-    service.createRequest(readerId, bookId, "  note  ").getStatus());
-```
-
-Also test duplicate active request, draft-only editing, restricted deletion, blank names/titles and invalid copy counts. Run `mvn -Dtest=BookIssueRequestServiceTest test`; expect failure.
-
-- [ ] **Step 2: Implement shared validation helpers inside services**
-
-Normalize human-entered strings with `trim()`. Email and ISBN are stored as entered after trimming; do not invent complex format validation absent from the spec. IDs must be positive. Notes may be null/blank and are normalized to null; length after trimming is at most 500.
-
-- [ ] **Step 3: Implement reader and book use cases**
-
-Required public methods:
+- [ ] **Step 3: Implement order CRUD**
 
 ```java
-Reader create(String cardNumber, String fullName, String email);
-List<Reader> getAll();
-Reader getById(long id);
-
-Book create(String isbn, String title, String author, int publicationYear, int totalCopies);
-List<Book> getAll();
-Book getById(long id);
+CustomerOrder createOrder(long customerId, List<OrderItemInput> items, String note);
+List<CustomerOrderDetails> getAll();
+CustomerOrderDetails getById(long id);
+CustomerOrder updateNew(long orderId, long customerId,
+                        List<OrderItemInput> items, String note);
+void delete(long orderId);
 ```
 
-New readers are active and registered on `LocalDate.now(clock)`. New books start with `availableCopies == totalCopies`.
+`OrderItemInput` contains only `productId` and `quantity`; callers cannot set price or status directly. Creating an order does not reserve stock. Repository creation/update of an order and all its items must be one transaction.
 
-- [ ] **Step 4: Implement request draft CRUD**
+- [ ] **Step 4: Run service tests**
 
-Required public methods:
-
-```java
-BookIssueRequest createRequest(long readerId, long bookId, String note);
-List<BookIssueRequestDetails> getAll();
-BookIssueRequestDetails getById(long id);
-BookIssueRequest updateDraft(long requestId, long readerId, long bookId, String note);
-void delete(long requestId);
+```bash
+mvn -Dtest=CustomerOrderServiceTest test
 ```
-
-Service performs existence/active/duplicate/status checks before calling the repository. The repository still provides DB constraints as a second line of defence.
-
-- [ ] **Step 5: Run unit tests**
-
-Run `mvn -Dtest=BookIssueRequestServiceTest test`; expect PASS without Docker.
 
 ---
 
-### Task 5: Request JDBC Repository and Atomic Lifecycle
+### Task 5: Implement Order JDBC Repository and Atomic Stock Lifecycle
 
 **Owner:** JDBC workflow agent
-**Depends on:** Tasks 3 and 4
+**Depends on:** Task 4
 
 **Files:**
 
-- Create: `repository/jdbc/JdbcBookIssueRequestRepository.java`
-- Create: `integration/JdbcBookIssueRequestRepositoryTest.java`
-- Modify: `service/BookIssueRequestService.java`
-- Modify: `service/BookIssueRequestServiceTest.java`
+- Replace: `JdbcBookIssueRequestRepository` with `JdbcCustomerOrderRepository`
+- Rewrite: repository integration tests
+- Complete: `CustomerOrderService.changeStatus`
 
-**Interfaces:**
+- [ ] **Step 1: Implement joined reads without duplicate orders**
 
-- Consumes the Task 2 repository contract.
-- Produces all request persistence and `changeStatus(long, RequestStatus)` use case.
+Load order headers and items deterministically (`ORDER BY order_id, item_id`) and group them into one `CustomerOrderDetails` per order. Searches must return distinct orders even when several items match.
 
-- [ ] **Step 1: Write repository integration tests**
+- [ ] **Step 2: Implement transactional create/update/delete**
 
-Cover create/read/update/delete, both searches, both filters, active duplicate detection and all lifecycle operations. The critical transaction assertions are:
+Create the order header and item rows in one transaction. For update, lock and require `NEW`, update the header, replace its items, and commit once. Delete SQL must include the allowed statuses so stale UI state cannot delete a progressed order.
 
-```java
-BookIssueRequest issued = repository.issue(requestId, issuedOn, issuedOn.plusDays(30));
-assertEquals(RequestStatus.ISSUED, issued.getStatus());
-assertEquals(before - 1, bookRepository.findById(bookId).orElseThrow().getAvailableCopies());
+- [ ] **Step 3: Implement atomic payment**
 
-BookIssueRequest returned = repository.returnBook(requestId, issuedOn.plusDays(5));
-assertEquals(RequestStatus.RETURNED, returned.getStatus());
-assertEquals(before, bookRepository.findById(bookId).orElseThrow().getAvailableCopies());
+In one transaction:
+
+1. Lock the order and require `NEW`.
+2. Load its items; reject an order with no items.
+3. Lock all referenced product rows in ascending product ID order.
+4. Require every product to be active with `stock_quantity >= requested quantity`.
+5. Decrement every stock using guarded updates.
+6. Change order to `PAID`, set `paid_at`, then commit.
+7. On any failure, roll back the complete operation.
+
+- [ ] **Step 4: Implement atomic cancellation of a paid order**
+
+Lock rows in the same order, require `PAID`, restore every product quantity, set `CANCELLED` and `cancelled_at`, then commit. `NEW -> CANCELLED` is a simple status transition because stock was not reserved.
+
+- [ ] **Step 5: Implement remaining transitions**
+
+`PAID -> SHIPPED` sets `shipped_at`; `SHIPPED -> DELIVERED` sets `delivered_at`. The service validates `allowedTargets()` and dispatches payment and paid cancellation to their transactional repository methods.
+
+- [ ] **Step 6: Test rollback and concurrency**
+
+Cover full CRUD, multi-item reads, all status transitions, insufficient stock, inactive product, rollback partway through payment/cancellation, and two simultaneous payments competing for the last unit. Exactly one competing payment succeeds and stock never becomes negative.
+
+```bash
+mvn -Dtest=JdbcCustomerOrderRepositoryTest,CustomerOrderServiceTest test
 ```
-
-Also assert that issuing when `available_copies = 0` changes neither table.
-
-- [ ] **Step 2: Implement joined reads and parameterized queries**
-
-Use one shared projection selecting request columns plus `reader_name`, `book_title`, `book_author`. Searches use `ILIKE ?` with `%` + query + `%`. Date filter uses the half-open SQL interval `requested_at >= from` and `requested_at < to.plusDays(1)` so both boundary dates are included.
-
-- [ ] **Step 3: Implement draft CRUD with optimistic status predicates**
-
-Update and delete SQL must include the allowed statuses in `WHERE`; inspect affected-row count and return/throw a business-safe failure instead of assuming success. This prevents a stale UI read from bypassing service checks.
-
-- [ ] **Step 4: Implement atomic issue transaction**
-
-Within one connection:
-
-```java
-connection.setAutoCommit(false);
-```
-
-1. Lock the request and its book row with `SELECT r.status, b.id, b.available_copies, b.total_copies FROM book_issue_requests r JOIN books b ON b.id = r.book_id WHERE r.id = ? FOR UPDATE OF r, b`.
-2. Verify current status is `APPROVED` and `available_copies > 0`.
-3. Decrement the book with `UPDATE books SET available_copies = available_copies - 1 WHERE id = ? AND available_copies > 0` and require one affected row.
-4. Update request to `ISSUED`, setting `issued_on` and `due_on`.
-5. `commit()`; on every exception `rollback()`; restore auto-commit before closing.
-
-- [ ] **Step 5: Implement atomic return transaction**
-
-Lock the same rows in the same order as issue, require `ISSUED`, increment only when `available_copies < total_copies`, update request to `RETURNED`, set `returned_on`, and commit. Lock ordering prevents avoidable deadlocks.
-
-- [ ] **Step 6: Implement lifecycle service method**
-
-```java
-public BookIssueRequest changeStatus(long requestId, RequestStatus target)
-```
-
-Load the request, validate `canTransitionTo`, then dispatch:
-
-- target `ISSUED` -> `repository.issue(id, today, today.plusDays(30))`;
-- target `RETURNED` -> `repository.returnBook(id, today)`;
-- other allowed target -> `repository.transition(id, current, target)`.
-
-- [ ] **Step 7: Test concurrency and rollback**
-
-Use two executor tasks and a `CountDownLatch` to attempt issuance of two approved requests for a one-copy book. Assert exactly one succeeds, exactly one remains unissued, and stock is zero. For rollback verification, create a test-only PostgreSQL `BEFORE UPDATE` trigger that raises an exception when `NEW.status = 'ISSUED'`, call `issue`, then assert the book stock is unchanged and drop the trigger in `finally`.
-
-Run `mvn -Dtest=JdbcBookIssueRequestRepositoryTest,BookIssueRequestServiceTest test`; expect PASS.
 
 ---
 
-### Task 6: Search, Filters, Sorting, and Statistics
+### Task 6: Replace Search, Filters, Sorting, and Statistics
 
 **Owner:** query/statistics agent
 **Depends on:** Task 5
 
 **Files:**
 
-- Modify: `service/BookIssueRequestService.java`
-- Create: `repository/jdbc/JdbcStatisticsRepository.java`
-- Create: `service/StatisticsService.java`
-- Create: `service/RequestSortingTest.java`
-- Modify: `integration/JdbcBookIssueRequestRepositoryTest.java`
+- Modify: `CustomerOrderService`, `JdbcStatisticsRepository`, `StatisticsService`
+- Replace: `RequestSortingTest` with `OrderSortingTest`
 
-**Interfaces:**
-
-- Produces UI-ready search/filter/sort/statistics methods.
-
-- [ ] **Step 1: Write search, filtering and sorting tests**
-
-Test case-insensitive partial title and reader searches, inclusive date boundaries, status filter, and both sort directions. For nullable due dates assert `null` is always last:
+- [ ] **Step 1: Implement the query API**
 
 ```java
-List<BookIssueRequestDetails> sorted = service.sort(
-    source, RequestSortField.DUE_ON, SortDirection.ASCENDING);
-assertNull(sorted.get(sorted.size() - 1).getRequest().getDueOn());
+List<CustomerOrderDetails> searchByProductName(String query);
+List<CustomerOrderDetails> searchByCustomerName(String query);
+List<CustomerOrderDetails> filterByStatus(OrderStatus status);
+List<CustomerOrderDetails> filterByCreatedAt(LocalDate from, LocalDate to);
+List<CustomerOrderDetails> sort(List<CustomerOrderDetails> source,
+                                OrderSortField field, SortDirection direction);
 ```
 
-- [ ] **Step 2: Implement service query API**
+Search is case-insensitive and partial. Date boundaries are inclusive. Sorting produces a new list, uses Stream API/`Comparator`, and supports creation date and calculated total in both directions.
 
-```java
-List<BookIssueRequestDetails> searchByBookTitle(String query);
-List<BookIssueRequestDetails> searchByReaderName(String query);
-List<BookIssueRequestDetails> filterByStatus(RequestStatus status);
-List<BookIssueRequestDetails> filterByRequestedAt(LocalDate from, LocalDate to);
-List<BookIssueRequestDetails> sort(List<BookIssueRequestDetails> source,
-                                   RequestSortField field, SortDirection direction);
+- [ ] **Step 2: Replace statistics**
+
+Return at least these indicators:
+
+1. customer count;
+2. product count;
+3. total units currently in stock;
+4. total order count;
+5. order count by every status using `EnumMap<OrderStatus, Long>`;
+6. total revenue of `DELIVERED` orders;
+7. count of products with zero stock.
+
+- [ ] **Step 3: Verify queries and statistics**
+
+Test both searches, both filters, both sort fields/directions, multi-item order de-duplication and every statistic against known rows.
+
+```bash
+mvn -Dtest=OrderSortingTest,JdbcCustomerOrderRepositoryTest test
 ```
-
-Reject blank search terms and `from > to`. Sorting returns a new list and uses Stream API plus `Comparator`; it never mutates repository results.
-
-- [ ] **Step 3: Implement statistics in SQL**
-
-`JdbcStatisticsRepository.load(today)` must return all seven indicators from the spec. Use aggregate queries and an `EnumMap<RequestStatus, Long>` initialized with zero for missing statuses. Overdue means `status = 'ISSUED' AND due_on < ?`.
-
-- [ ] **Step 4: Verify query behavior**
-
-Run `mvn -Dtest=RequestSortingTest,JdbcBookIssueRequestRepositoryTest test`; expect PASS.
 
 ---
 
-### Task 7: Excel Export
+### Task 7: Adapt Excel Export
 
 **Owner:** export agent
 **Depends on:** Task 6
 
 **Files:**
 
-- Create: `export/DataExporter.java`
-- Create: `export/ExcelExporter.java`
-- Create: `export/LibraryExportData.java`
-- Create: `export/ExcelExporterTest.java`
-- Create: `exports/.gitkeep`
+- Rename: `LibraryExportData` to `StoreExportData`
+- Modify: `DataExporter`, `ExcelExporter`, `ExcelExporterTest`
 
-**Interfaces:**
+- [ ] **Step 1: Replace export data**
 
-- Consumes complete snapshots of readers, books, requests and statistics.
-- Produces a valid `.xlsx` path.
+`StoreExportData` contains customers, products, order details and statistics. Export five sheets: `Customers`, `Products`, `Orders`, `Order Items`, `Statistics`.
 
-- [ ] **Step 1: Define exporter polymorphic contract and test**
+- [ ] **Step 2: Adapt workbook content**
 
-```java
-public interface DataExporter {
-    Path export(LibraryExportData data, Path targetDirectory);
-}
-```
-
-`LibraryExportData` contains `List<Reader> readers`, `List<Book> books`, `List<BookIssueRequestDetails> requests`, and `SystemStatistics statistics`. The test writes to `@TempDir`, opens the result with `WorkbookFactory.create(file)`, and asserts sheet names `Readers`, `Books`, `Requests`, `Statistics`, header rows, data row counts and date cell types.
-
-- [ ] **Step 2: Implement `ExcelExporter` with XSSF**
-
-Use `try (Workbook workbook = new XSSFWorkbook(); OutputStream out = Files.newOutputStream(path))`. Create one reusable header style and one date style. Freeze the first row, add auto-filter, and cap computed column widths to avoid pathological values.
+Orders contain customer, status, timestamps and total. Order Items contain order ID, product/SKU, quantity, unit price and line total. Money remains numeric Excel cells; timestamps use a readable date-time style. Keep header styling, frozen rows, filters and bounded auto-width.
 
 Filename format:
 
 ```text
-library-export-yyyyMMdd-HHmmss.xlsx
+online-store-export-yyyyMMdd-HHmmss.xlsx
 ```
 
-Create the target directory with `Files.createDirectories`. Translate I/O failures to `ExportException`.
+- [ ] **Step 3: Verify the workbook**
 
-- [ ] **Step 3: Run exporter test**
+Open the produced file with Apache POI in the test and verify sheet names, row counts, numeric money cells and representative values.
 
-Run `mvn -Dtest=ExcelExporterTest test`; expect PASS and no files outside the temporary test directory.
+```bash
+mvn -Dtest=ExcelExporterTest test
+```
 
 ---
 
-### Task 8: Resilient Console UI and Application Wiring
+### Task 8: Replace Console UI and Application Wiring
 
 **Owner:** UI agent
 **Depends on:** Task 7
 
 **Files:**
 
-- Create: `ui/ConsoleInput.java`
-- Create: `ui/ConsolePrinter.java`
-- Create: `ui/ConsoleApplication.java`
-- Create: `Main.java`
-- Create: `ui/ConsoleInputTest.java`
+- Modify/move: `ConsoleInput`, `ConsolePrinter`, `ConsoleApplication`, `Main`
+- Rewrite: UI tests
 
-**Interfaces:**
+- [ ] **Step 1: Replace menus and labels**
 
-- Consumes all services and `DataExporter` by constructor injection.
-- Produces the interactive menus defined in the spec.
+Main menu contains customers, products, orders, search, filters, sorting, statistics and Excel export. Remove every library-specific label. Order creation/editing must accept repeated `product ID + quantity` input until the user finishes, while rejecting an empty item list.
 
-- [ ] **Step 1: Test safe input parsing**
+- [ ] **Step 2: Preserve resilient input handling**
 
-With `ByteArrayInputStream`, assert `readLong` re-prompts after `abc`, `readIntInRange` rejects out-of-range choices, `readDate` re-prompts after invalid ISO date, and EOF exits cleanly rather than looping forever.
+Reuse current line-based parsing and retry loops. Add safe parsing for positive quantity and positive decimal price using `BigDecimal`. Invalid input prints a Russian message and returns control to the current menu instead of terminating the program.
 
-- [ ] **Step 2: Implement `ConsoleInput`**
+- [ ] **Step 3: Replace output tables**
 
-Read full lines through one `BufferedReader`; never mix `Scanner.nextInt()` and line reads. Parsing methods own their retry loops and print exact Russian error messages such as `Ошибка: ID должен быть целым положительным числом.`
+Print customers, products, order headers and nested item rows. Show each order total. Null lifecycle timestamps print `—`; empty results print `Записи не найдены.`
 
-- [ ] **Step 3: Implement reusable output formatting**
+- [ ] **Step 4: Rewire `Main`**
 
-`ConsolePrinter` prints readers, books, request details and statistics in aligned text tables. Empty collections print `Записи не найдены.`; null dates print `—`.
+Instantiate only store repositories/services and keep dependency injection through interfaces. Startup still performs a database connectivity check and prints a user-safe error without a stack trace.
 
-- [ ] **Step 4: Implement all menus as loops**
+- [ ] **Step 5: Run UI tests and smoke test**
 
-Implement main menu and submenus for readers, books, request CRUD/status, search, filters and sorting. Every submenu handles `0` with `return`; only main-menu `0` terminates the application.
-
-At the boundary of each operation catch:
-
-```java
-EntityNotFoundException | BusinessRuleException
-DataAccessException
-ExportException
+```bash
+mvn -Dtest=ConsoleInputTest,ConsoleApplicationTest test
 ```
 
-Print a user-safe message and continue the loop. Do not catch `Throwable` or silently ignore exceptions.
-
-- [ ] **Step 5: Wire dependencies in `Main`**
-
-Instantiate `DatabaseConfig`, `DatabaseManager`, JDBC repositories, services with `Clock.systemDefaultZone()`, `ExcelExporter`, then `ConsoleApplication`. Before opening the menu execute `SELECT 1`; on connection failure print a clear startup message and return with no stack-trace crash.
-
-- [ ] **Step 6: Run UI tests and a scripted smoke session**
-
-Run `mvn -Dtest=ConsoleInputTest test`. Then pipe a script that enters an invalid menu value, lists data and exits; assert the invalid input message appears and the process exits with code 0.
+Script at least: invalid menu input, list products, create a multi-item order, view it, and exit successfully.
 
 ---
 
-### Task 9: ER Diagram, Runbook, Full Verification, and Example Export
+### Task 9: Replace Documentation, Diagram, Example Export, and Run Full Verification
 
 **Owner:** release/documentation agent
 **Depends on:** Task 8
 
 **Files:**
 
-- Create: `docs/er-diagram.puml`
-- Create: `README.md`
-- Create after running application: `exports/library-export-example.xlsx`
-- Modify only if verification finds a defect: files owned by Tasks 1–8
+- Replace: `docs/library-system-spec.md` with `docs/online-store-spec.md`
+- Replace: `docs/er-diagram.puml` with `docs/online-store-er-diagram.puml`
+- Rewrite: `README.md`
+- Replace: old example export with `exports/online-store-export-example.xlsx`
+- Delete: obsolete library-specific files after replacements are verified
 
-**Interfaces:**
+- [ ] **Step 1: Update the human-readable specification**
 
-- Produces every artifact required for defence.
+Preserve the current specification structure and mandatory КР 1 requirements, replacing only the domain model, statuses, business rules, menus, statistics and examples with the decisions fixed in this plan. Do not introduce returns or external integrations.
 
-- [ ] **Step 1: Create the ER source**
+- [ ] **Step 2: Replace the ER diagram**
 
-The PlantUML diagram must show all columns, PK/UK/FK markers, cardinalities `Reader 1 -> many Requests` and `Book 1 -> many Requests`, and the request status note. Compare it column-for-column with `01-schema.sql`.
+Show all four tables, PK/UK/FK markers and cardinalities:
 
-- [ ] **Step 2: Write the launch instruction**
+```text
+Customer 1 -> many CustomerOrder
+CustomerOrder 1 -> many OrderItem
+Product 1 -> many OrderItem
+```
 
-`README.md` must contain:
+Compare every diagram column and constraint with `01-schema.sql`.
+
+- [ ] **Step 3: Rewrite README and run commands**
+
+Document setup, `.env`, reset warning, architecture, entity relationships, order lifecycle, stock transaction, tests, export and defence checklist. Commands:
 
 ```bash
 cp .env.example .env
 docker compose up -d --wait
+mvn clean test
 mvn clean package
-java -jar target/library-information-system.jar
+java -jar target/online-store.jar
 ```
 
-Document environment variables, database reset (`docker compose down -v` destroys local DB data), test command, export location, architecture, business rules and a defence checklist explaining encapsulation, interfaces/polymorphism, collections, exceptions, JDBC and `Statement` versus `PreparedStatement`.
-
-- [ ] **Step 3: Run the complete automated verification**
+- [ ] **Step 4: Run full automated verification**
 
 ```bash
+docker compose down -v
 docker compose up -d --wait
 mvn clean test
 mvn clean package
 ```
 
-Expected: zero failures, shaded JAR exists, no compiler warnings caused by project code.
+Expected: all tests pass, the shaded JAR exists, and no old `ru.mirea.library` Java package remains.
 
-- [ ] **Step 4: Run the manual acceptance scenario**
+- [ ] **Step 5: Run the acceptance scenario**
 
-Perform in order:
+1. Create a customer and two products.
+2. Create one order containing both products.
+3. Edit the `NEW` order and verify copied item prices and total.
+4. Search by product and customer; filter by `NEW` and date; sort by date and total.
+5. Pay the order and verify both stocks decrease.
+6. Cancel it and verify both stocks restore exactly once.
+7. Create another order and move it through `NEW -> PAID -> SHIPPED -> DELIVERED`.
+8. Verify cancellation after shipment is rejected.
+9. Verify invalid ID, quantity and insufficient-stock errors do not terminate the UI.
+10. Print statistics, export Excel and open the file.
 
-1. create a reader and book;
-2. create a request;
-3. search it by title and reader;
-4. filter by `CREATED` and creation date;
-5. sort by request date and due date;
-6. transition `CREATED -> APPROVED -> ISSUED`;
-7. verify stock decreased and due date is issue date + 30;
-8. transition `ISSUED -> RETURNED` and verify stock restored;
-9. try a forbidden transition and invalid ID;
-10. print statistics and all database tables;
-11. export Excel and open it.
+- [ ] **Step 6: Audit deliverables**
 
-- [ ] **Step 5: Save the example export and audit deliverables**
-
-Copy the verified export to `exports/library-export-example.xlsx`. Confirm the project contains source code, `pom.xml`, SQL schema/seed, ER diagram source, Excel example, `README.md`, and working console application.
-
-- [ ] **Step 6: Final clean-state check**
-
-Run `git status --short` if the directory is a Git repository. Verify no passwords other than documented local-development defaults, IDE metadata, database volumes, `target/`, or accidental exports are tracked. Do not commit or push without explicit owner approval.
+Save the checked example as `exports/online-store-export-example.xlsx`. Confirm that code, SQL, documentation, diagram, tests and example export all use only the online-store domain. Run `git diff --check` and `git status --short`. Do not commit or push without explicit approval.
 
 ## Requirement Traceability
 
 | ТЗ | Реализация | Проверка |
 |---|---|---|
-| Java 21, `pom.xml`, JDBC | Tasks 1–3 | `mvn clean package`, integration tests |
-| Минимум две связанные сущности | `Reader`, `Book`, `BookIssueRequest` | schema FK tests |
-| CRUD основной сущности | Tasks 4–5 | service and repository tests |
-| enum | `RequestStatus` | `RequestStatusTest` |
-| интерфейс и полиморфизм | repository interfaces, `DataExporter` | wiring in `Main` |
-| коллекции и Stream API | request sorting, `EnumMap` statistics | `RequestSortingTest` |
-| собственные исключения | Task 2 | service/UI tests |
-| минимум 5 бизнес-правил | 10 rules in spec, Tasks 4–5 | unit/integration tests |
-| два поиска | title and reader name | repository integration tests |
-| два фильтра | status and date range | repository integration tests |
-| два способа сортировки | requested date and due date | sorting tests |
-| минимум 5 показателей | 7 indicators | statistics integration test |
+| Java 21, Maven, JDBC, PostgreSQL | Tasks 1–3 | package and integration tests |
+| Связанные сущности | `Customer`, `CustomerOrder`, `OrderItem`, `Product` | schema FK tests |
+| CRUD основной сущности | Tasks 4–5 | order service/repository tests |
+| enum | `OrderStatus` | `OrderStatusTest` |
+| интерфейсы и полиморфизм | repositories, `DataExporter` | wiring review |
+| коллекции и Stream API | item lists, sorting, `EnumMap` | unit tests |
+| собственные исключения | retained and renamed messages | service/UI tests |
+| минимум 5 бизнес-правил | Global Constraints and Tasks 4–5 | unit/integration tests |
+| два поиска | product and customer | repository tests |
+| два фильтра | status and creation date | repository tests |
+| два способа сортировки | creation date and total | `OrderSortingTest` |
+| минимум 5 показателей | seven store indicators | statistics tests |
 | Excel `.xlsx` | Task 7 | workbook reopen test |
-| начальные данные | Task 1 | SQL count checks |
-| обработка некорректного ввода/SQL | Tasks 3, 4, 8 | automated and smoke tests |
-| SQL вне UI, слоистая архитектура | all tasks | source review |
+| начальные данные | Task 1 | SQL count/constraint checks |
+| обработка неверного ввода и SQL | Tasks 3, 4, 8 | automated and smoke tests |
+| слоистая архитектура, SQL вне UI | all tasks | source review |
