@@ -4,4 +4,4 @@
 target/
 .superpowers/
 exports/*.xlsx
-!exports/library-export-example.xlsx
+!exports/online-store-export-example.xlsx

@@ -1,0 +1,14 @@
+package ru.mirea.store.ui;
+
+import java.io.PrintStream; import java.time.LocalDateTime; import java.time.format.DateTimeFormatter; import java.util.List; import java.util.Objects;
+import ru.mirea.store.model.*;
+
+public final class ConsolePrinter {
+    private static final DateTimeFormatter DATE_TIME=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"); private final PrintStream out;
+    public ConsolePrinter(PrintStream out){this.out=Objects.requireNonNull(out);} public void println(String text){out.println(text);}public void success(String text){out.println("Успех: "+text);}public void error(String text){out.println("Ошибка: "+text);}
+    public void printCustomers(List<Customer> values){if(values.isEmpty()){empty();return;}out.printf("%-5s %-28s %-28s %-18s %-8s %-17s%n","ID","ФИО","Email","Телефон","Активен","Регистрация");for(Customer v:values)out.printf("%-5d %-28s %-28s %-18s %-8s %-17s%n",v.getId(),crop(v.getFullName(),28),crop(v.getEmail(),28),crop(v.getPhone(),18),v.isActive()?"да":"нет",date(v.getRegisteredAt()));}
+    public void printProducts(List<Product> values){if(values.isEmpty()){empty();return;}out.printf("%-5s %-16s %-30s %-12s %-9s %-8s%n","ID","SKU","Название","Цена","Остаток","Активен");for(Product v:values)out.printf("%-5d %-16s %-30s %-12s %-9d %-8s%n",v.getId(),crop(v.getSku(),16),crop(v.getName(),30),v.getPrice().toPlainString(),v.getStockQuantity(),v.isActive()?"да":"нет");}
+    public void printOrders(List<CustomerOrderDetails> values){if(values.isEmpty()){empty();return;}for(CustomerOrderDetails d:values){CustomerOrder o=d.getOrder();out.printf("Заказ #%d | %s | %s | %s | сумма %s | оплачен %s | отправлен %s | доставлен %s | отменён %s%n",o.getId(),d.getCustomerName(),o.getStatus(),date(o.getCreatedAt()),d.getTotal().toPlainString(),date(o.getPaidAt()),date(o.getShippedAt()),date(o.getDeliveredAt()),date(o.getCancelledAt()));for(OrderItemDetails item:d.getItems())out.printf("  - %s (%s), %d x %s = %s%n",item.getProductName(),item.getProductSku(),item.getItem().getQuantity(),item.getItem().getUnitPrice().toPlainString(),item.getItem().getLineTotal().toPlainString());}}
+    public void printStatistics(SystemStatistics v){out.println("Покупателей: "+v.getCustomerCount());out.println("Товаров: "+v.getProductCount());out.println("Единиц на складе: "+v.getStockUnitCount());out.println("Заказов: "+v.getOrderCount());for(OrderStatus status:OrderStatus.values())out.println("  "+status+": "+v.getOrdersByStatus().getOrDefault(status,0L));out.println("Выручка доставленных заказов: "+v.getDeliveredRevenue().toPlainString());out.println("Товаров без остатка: "+v.getOutOfStockProductCount());}
+    private void empty(){out.println("Записи не найдены.");}private static String date(LocalDateTime value){return value==null?"—":value.format(DATE_TIME);}private static String crop(String value,int length){if(value==null)return "—";return value.length()<=length?value:value.substring(0,length-1)+"…";}
+}
