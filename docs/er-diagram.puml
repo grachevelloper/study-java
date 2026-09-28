@@ -1,0 +1,47 @@
+@startuml
+hide methods
+hide stereotypes
+
+entity "readers" as readers {
+  * id : bigint <<PK>>
+  --
+  * library_card_number : varchar(50) <<UK>>
+  * full_name : varchar(200)
+  * email : varchar(320) <<UK>>
+  * active : boolean
+  * registered_at : date
+}
+
+entity "books" as books {
+  * id : bigint <<PK>>
+  --
+  * isbn : varchar(32) <<UK>>
+  * title : varchar(300)
+  * author : varchar(200)
+  * publication_year : integer
+  * total_copies : integer
+  * available_copies : integer
+}
+
+entity "book_issue_requests" as requests {
+  * id : bigint <<PK>>
+  --
+  * reader_id : bigint <<FK>>
+  * book_id : bigint <<FK>>
+  * status : varchar(20)
+  * requested_at : timestamp
+  issued_on : date
+  due_on : date
+  returned_on : date
+  note : varchar(500)
+}
+
+readers ||--o{ requests : "1 reader creates many"
+books ||--o{ requests : "1 book appears in many"
+
+note right of requests
+  status: CREATED, APPROVED, ISSUED,
+  RETURNED, REJECTED, CANCELLED
+  active pair (reader_id, book_id) is unique
+end note
+@enduml
