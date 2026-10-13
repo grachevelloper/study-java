@@ -65,6 +65,10 @@ class ExcelExporterTest {
     assertTrue(
       file.getFileName().toString().startsWith("online-store-export-")
     );
+    Path selectedFile = directory.resolve("selected-by-user.xlsx");
+    assertEquals(selectedFile,
+      new ExcelExporter().exportToFile(data, selectedFile));
+    assertTrue(Files.isRegularFile(selectedFile));
     try (
       InputStream input = Files.newInputStream(file);
       Workbook workbook = WorkbookFactory.create(input)
