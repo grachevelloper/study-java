@@ -43,7 +43,7 @@ class JdbcCatalogRepositoryTest {
         "elena@example.com",
         "+7 999 123-45-67",
         true,
-        LocalDateTime.now()
+        LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS)
       )
     );
     Product p = products.save(

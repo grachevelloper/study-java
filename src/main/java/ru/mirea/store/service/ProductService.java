@@ -31,6 +31,10 @@ public final class ProductService {
     );
     BigDecimal normalizedPrice = InputValidator.money(price);
     int normalizedStock = InputValidator.stock(stockQuantity);
+    if (repository.findAll().stream().anyMatch(value ->
+      value.getSku().equalsIgnoreCase(normalizedSku))) {
+      throw new BusinessRuleException("SKU уже используется товаром.");
+    }
     return repository.save(
       new Product(
         0,
