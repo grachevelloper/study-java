@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="root"
+  spacing="12" prefWidth="800" prefHeight="580" styleClass="content">
+  <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+  <Label fx:id="heading" styleClass="title"/>
+  <Label fx:id="customerInfo" wrapText="true"/>
+  <Label fx:id="dates"/>
+  <TableView fx:id="items" VBox.vgrow="ALWAYS"/>
+  <Label fx:id="note" wrapText="true"/>
+  <Label fx:id="total" styleClass="subtitle"/>
+  <Button text="Закрыть" onAction="#close"/>
+</VBox>

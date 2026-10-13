@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="root"
+  spacing="12" prefWidth="760" prefHeight="600" styleClass="content">
+  <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+  <Label text="Данные заказа" styleClass="title"/>
+  <Label text="Покупатель *"/>
+  <ComboBox fx:id="customer" maxWidth="Infinity"/>
+  <Label text="Позиции заказа *"/>
+  <FlowPane hgap="8" vgap="8">
+    <ComboBox fx:id="product" prefWidth="350" promptText="Выберите товар"/>
+    <TextField fx:id="quantity" text="1" promptText="Количество"
+      prefWidth="100"/>
+    <Button text="Добавить / заменить" onAction="#putItem"/>
+  </FlowPane>
+  <TableView fx:id="items" VBox.vgrow="ALWAYS">
+    <placeholder><Label text="Добавьте хотя бы одну позицию"/></placeholder>
+  </TableView>
+  <HBox spacing="12">
+    <Button text="Убрать выбранную позицию" onAction="#removeItem"/>
+    <Label fx:id="total" styleClass="subtitle"/>
+  </HBox>
+  <Label wrapText="true" styleClass="hint"
+    text="При сохранении цены позиций берутся из текущего каталога."/>
+  <Label text="Примечание (до 500 символов)"/>
+  <TextArea fx:id="note" prefRowCount="3" wrapText="true"/>
+  <HBox spacing="10" alignment="CENTER_RIGHT">
+    <Button text="Отмена" onAction="#cancel"/>
+    <Button text="Сохранить" onAction="#save" styleClass="primary"/>
+  </HBox>
+</VBox>

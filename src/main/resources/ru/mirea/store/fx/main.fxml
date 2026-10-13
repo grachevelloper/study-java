@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:id="root">
+  <top>
+    <VBox spacing="12" styleClass="header">
+      <padding><Insets top="18" right="20" bottom="14" left="20"/></padding>
+      <Label text="Интернет-магазин" styleClass="title"/>
+      <HBox spacing="10">
+        <Button text="Обновить данные" onAction="#refresh"/>
+        <Button text="Статистика" onAction="#statistics"/>
+        <Button text="Экспорт заказов в Excel" onAction="#export"/>
+      </HBox>
+      <Label wrapText="true" styleClass="hint"
+        text="Экспорт: текущие заказы и позиции; справочники и статистика — вся БД."/>
+    </VBox>
+  </top>
+  <center>
+    <TabPane tabClosingPolicy="UNAVAILABLE">
+      <tabs>
+        <Tab text="Заказы">
+          <VBox spacing="12" styleClass="content">
+            <padding><Insets top="16" right="20" bottom="16" left="20"/></padding>
+            <FlowPane hgap="10" vgap="8">
+              <ComboBox fx:id="searchField" prefWidth="170"/>
+              <TextField fx:id="search" promptText="Поиск"
+                prefWidth="230" onAction="#applyFilters"/>
+              <ComboBox fx:id="status" prefWidth="160"/>
+            </FlowPane>
+            <FlowPane hgap="10" vgap="8">
+              <Label text="Создан с"/>
+              <DatePicker fx:id="fromDate" prefWidth="135"/>
+              <Label text="по"/>
+              <DatePicker fx:id="toDate" prefWidth="135"/>
+              <ComboBox fx:id="sortField" prefWidth="150"/>
+              <ComboBox fx:id="direction" prefWidth="165"/>
+              <Button text="Применить" onAction="#applyFilters"/>
+              <Button text="Сбросить" onAction="#resetFilters"/>
+            </FlowPane>
+            <FlowPane hgap="10" vgap="8">
+              <Button text="Добавить заказ" onAction="#addOrder"
+                styleClass="primary"/>
+              <Button fx:id="detailsButton" text="Просмотр"
+                onAction="#details"/>
+              <Button fx:id="editButton" text="Редактировать"
+                onAction="#editOrder"/>
+              <Button fx:id="deleteButton" text="Удалить"
+                onAction="#deleteOrder" styleClass="danger"/>
+            </FlowPane>
+            <TableView fx:id="ordersTable" VBox.vgrow="ALWAYS">
+              <placeholder><Label text="Заказы не найдены"/></placeholder>
+            </TableView>
+            <FlowPane hgap="10" vgap="8">
+              <Label text="Перевести выбранный заказ в статус:"/>
+              <ComboBox fx:id="targetStatus" prefWidth="170"/>
+              <Button fx:id="statusButton" text="Изменить статус"
+                onAction="#changeStatus"/>
+            </FlowPane>
+            <Label fx:id="count" text="Загрузка данных…" styleClass="hint"/>
+          </VBox>
+        </Tab>
+        <Tab text="Покупатели">
+          <VBox spacing="12" styleClass="content">
+            <padding><Insets top="16" right="20" bottom="16" left="20"/></padding>
+            <Button text="Добавить покупателя" onAction="#addCustomer"
+              styleClass="primary"/>
+            <TableView fx:id="customersTable" VBox.vgrow="ALWAYS">
+              <placeholder><Label text="Покупателей пока нет"/></placeholder>
+            </TableView>
+          </VBox>
+        </Tab>
+        <Tab text="Товары">
+          <VBox spacing="12" styleClass="content">
+            <padding><Insets top="16" right="20" bottom="16" left="20"/></padding>
+            <Button text="Добавить товар" onAction="#addProduct"
+              styleClass="primary"/>
+            <TableView fx:id="productsTable" VBox.vgrow="ALWAYS">
+              <placeholder><Label text="Товаров пока нет"/></placeholder>
+            </TableView>
+          </VBox>
+        </Tab>
+      </tabs>
+    </TabPane>
+  </center>
+</BorderPane>
