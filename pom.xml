@@ -14,6 +14,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <postgresql.version>42.7.13</postgresql.version>
+        <javafx.version>21.0.8</javafx.version>
         <poi.version>5.5.1</poi.version>
         <log4j.version>2.24.3</log4j.version>
         <junit.version>5.14.3</junit.version>
@@ -25,6 +26,16 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -64,6 +75,19 @@
     <build>
         <finalName>online-store</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>ru.mirea.store.fx.StoreApplication</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -118,7 +142,9 @@
                             <transformers>
                                 <transformer
                                     implementation="${shade.transformer}">
-                                    <mainClass>ru.mirea.store.Main</mainClass>
+                                    <mainClass>
+                                        ru.mirea.store.fx.StoreLauncher
+                                    </mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

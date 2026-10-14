@@ -11,7 +11,6 @@ public record DatabaseConfig(String url, String user, String password) {
   private static final String DEFAULT_URL =
     "jdbc:postgresql://localhost:5432/online_store_db";
   private static final String DEFAULT_USER = "postgres";
-  private static final String DEFAULT_PASSWORD = "postgres";
 
   public DatabaseConfig {
     url = required(url, "DB_URL");
@@ -30,7 +29,7 @@ public record DatabaseConfig(String url, String user, String password) {
     return new DatabaseConfig(
       value("DB_URL", environment, dotenv, DEFAULT_URL),
       value("DB_USER", environment, dotenv, DEFAULT_USER),
-      value("DB_PASSWORD", environment, dotenv, DEFAULT_PASSWORD)
+      value("DB_PASSWORD", environment, dotenv, null)
     );
   }
 

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="root"
+  spacing="14" prefWidth="530" styleClass="content">
+  <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+  <Label text="Статистика" styleClass="title"/>
+  <Label text="Показатели относятся ко всей базе магазина."
+    styleClass="hint" wrapText="true"/>
+  <Label fx:id="customers"/>
+  <Label fx:id="products"/>
+  <Label fx:id="stock"/>
+  <Label fx:id="orders"/>
+  <Label fx:id="statuses"/>
+  <Label fx:id="revenue" wrapText="true"/>
+  <Label fx:id="emptyStock"/>
+  <Button text="Закрыть" onAction="#close"/>
+</VBox>

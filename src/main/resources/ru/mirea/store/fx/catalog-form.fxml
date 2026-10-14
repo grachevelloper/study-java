@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="root"
+  spacing="10" prefWidth="470" styleClass="content">
+  <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+  <Label fx:id="title" styleClass="title"/>
+  <Label fx:id="firstLabel"/>
+  <TextField fx:id="first"/>
+  <Label fx:id="secondLabel"/>
+  <TextField fx:id="second"/>
+  <Label fx:id="thirdLabel"/>
+  <TextField fx:id="third"/>
+  <VBox fx:id="stockBox" spacing="10">
+    <Label text="Остаток *"/>
+    <TextField fx:id="stock" text="0"/>
+  </VBox>
+  <HBox spacing="10" alignment="CENTER_RIGHT">
+    <Button text="Отмена" onAction="#cancel"/>
+    <Button text="Сохранить" onAction="#save" styleClass="primary"/>
+  </HBox>
+</VBox>

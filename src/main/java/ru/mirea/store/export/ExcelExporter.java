@@ -25,6 +25,16 @@ public final class ExcelExporter implements DataExporter {
       Path path = directory.resolve(
         "online-store-export-" + LocalDateTime.now().format(FILE_TIME) + ".xlsx"
       );
+      return exportToFile(data, path);
+    } catch (IOException e) {
+      throw new ExportException("Не удалось создать Excel-файл.", e);
+    }
+  }
+
+  public Path exportToFile(StoreExportData data, Path path) {
+    Objects.requireNonNull(data);
+    Objects.requireNonNull(path);
+    try {
       try (
         Workbook workbook = new XSSFWorkbook();
         OutputStream output = Files.newOutputStream(path)

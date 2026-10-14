@@ -28,6 +28,10 @@ public final class CustomerService {
     );
     String normalizedEmail = InputValidator.email(email);
     String normalizedPhone = InputValidator.phone(phone);
+    if (repository.findAll().stream().anyMatch(value ->
+      value.getEmail().equalsIgnoreCase(normalizedEmail))) {
+      throw new BusinessRuleException("Email уже используется покупателем.");
+    }
     return repository.save(
       new Customer(
         0,
