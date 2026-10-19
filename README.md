@@ -27,13 +27,14 @@
 cp .env.example .env
 ```
 
-Запустите базу данных и приложение:
+В Git Bash запустите базу данных и приложение одной командой:
 
 ```bash
-docker compose up -d --wait
-mvn clean compile
-mvn javafx:run
+bash ./run.sh
 ```
+
+Скрипт при необходимости запускает Docker Desktop, ждёт готовности PostgreSQL
+и затем открывает JavaFX-приложение. Для повторного запуска используйте ту же команду.
 
 ## Проверка
 
@@ -52,12 +53,14 @@ docker compose down
 
 ## Windows и IntelliJ IDEA
 
-Если Maven отсутствует в PATH:
+Из PowerShell используйте:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run.ps1
+.\run.ps1
 ```
 
+Если PowerShell блокирует выполнение скриптов, запустите
+`powershell -ExecutionPolicy Bypass -File .\run.ps1`.
 Скрипт может найти Java 21 и Maven внутри установленной IntelliJ IDEA.
 В IDEA выберите JDK 21 и запустите Maven goal `javafx:run`.
 Рабочий каталог — корень проекта, чтобы загрузился `.env`.
