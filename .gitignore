@@ -4,3 +4,8 @@
 target/
 exports/*.xlsx
 !exports/online-store-export-example.xlsx
+
+.maven-cache/
+
+/frontend/node_modules/
+/frontend/dist/

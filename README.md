@@ -1,4 +1,75 @@
-# Интернет-магазин — КР №2
+# Интернет-магазин
+
+## КР №3 — сервер и веб-интерфейс
+
+Из корня проекта скопируйте `.env.example` в `.env`. Задайте
+`POSTGRES_PASSWORD`, `JWT_SECRET_BASE64` и `BOOTSTRAP_ADMIN_PASSWORD`.
+Для JWT нужен случайный ключ из 32 байт в Base64. В macOS или Linux его
+можно получить командой `openssl rand -base64 32`, а временный пароль —
+командой `printf 'Adm1!%s\n' "$(openssl rand -hex 16)"`.
+В Windows скопируйте `.env.example` в `.env`, задайте пароль PostgreSQL
+и выполните `.\backend\init-env.ps1` для заполнения двух остальных параметров.
+
+```bash
+docker compose --env-file .env -f backend/docker-compose.yml up -d --build --wait
+```
+
+В Windows эту же команду запускает `.\backend\start-compose.ps1`.
+
+- Веб-интерфейс: [localhost:8080](http://localhost:8080/).
+- Состояние приложения: [localhost:8080/actuator/health](http://localhost:8080/actuator/health).
+- Swagger открывается из меню администратора после смены временного пароля.
+- Основные ресурсы API: `/api/orders`, `/api/customers`, `/api/analytics/summary`,
+  `/api/admin/users` и `/api/admin/audit`.
+
+### Структура веб-части
+
+- `frontend/src/app` — входная точка рабочих разделов и общая навигация.
+- `frontend/src/features` — вход, заказы, аналитика и администрирование.
+- `frontend/src/api` — запросы к серверу и обновление сеанса.
+- `frontend/src/components` и `frontend/src/styles` — общие компоненты и стили.
+- `backend/src` — приложение Spring Boot и миграции PostgreSQL.
+
+Docker собирает React через Vite. Spring Boot отдаёт готовый интерфейс и API
+с одного адреса. Для отдельной разработки фронтенда запустите Docker Compose,
+затем из корня проекта выполните команды с Node.js 24 и npm:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Откройте [localhost:5173](http://localhost:5173/). Vite перенаправляет запросы
+к серверу на порт 8080. Если в `.env` указан другой `APP_PORT`, запустите
+`npm run dev` с переменной `STORE_API_TARGET`, например
+`STORE_API_TARGET=http://localhost:18084 npm run dev`.
+
+При первом входе используйте `BOOTSTRAP_ADMIN_EMAIL` и `BOOTSTRAP_ADMIN_PASSWORD`.
+В пустой базе Flyway создаёт схему и начальные данные предыдущей работы.
+Для подключения **уже заполненной базы КР №1** сделайте резервную копию,
+укажите её в параметрах `SPRING_DATASOURCE_*` и запустите сервер с
+`FLYWAY_BASELINE_ON_MIGRATE=true`. Flyway отметит схему как версию 1
+и добавит поля и таблицы КР №3 миграцией V2. В V2 сохранены прежние числовые
+ключи, а API адресует заказы по UUID.
+
+CSV использует UTF-8 и разделитель «запятая». Возьмите экспорт из списка
+заказов как образец. В столбце `items` позиции записываются в формате
+`SKU:количество` и разделяются символом `|`. В режиме обновления заказ
+находится по `external_id`. Значения суммы, приоритета и архива в экспорте
+справочные. Цены позиций берутся из каталога при добавлении товара в заказ.
+
+Тесты сервера и остановка приложения:
+
+```bash
+mvn -f backend/pom.xml test
+docker compose --env-file .env -f backend/docker-compose.yml down
+```
+
+Данные PostgreSQL остаются в томе Docker после остановки.
+
+## КР №2 — настольное приложение
+
 
 Настольное JavaFX-приложение на Java 21. Работает с покупателями,
 товарами и заказами БД КР №1 напрямую через JDBC.
