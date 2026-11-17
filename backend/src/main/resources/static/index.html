@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Интернет-магазин — учёт заказов</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+</head>
+<body>
+    <header class="top">
+        <div class="wrap top-inner">
+            <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">ИМ</span> Интернет-магазин</a>
+            <div id="account" class="account" hidden>
+                <span id="account-name"></span>
+                <button type="button" id="account-password" class="quiet">Сменить пароль</button>
+                <button type="button" id="logout" class="quiet">Выйти</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <div id="message" class="message" role="status" hidden></div>
+        <section id="login" class="auth card" hidden>
+            <h1>Вход в систему</h1>
+            <form id="login-form">
+                <label>Электронная почта<input name="email" type="email" required autocomplete="username"></label>
+                <label>Пароль<input name="password" type="password" required autocomplete="current-password"></label>
+                <button class="primary" type="submit">Войти</button>
+            </form>
+        </section>
+
+        <section id="initial-password" class="auth card" hidden>
+            <h1>Смените временный пароль</h1>
+            <p>Задайте постоянный пароль, чтобы открыть рабочие разделы.</p>
+            <form id="initial-password-form">
+                <label>Новый пароль<input name="newPassword" type="password" minlength="12" required autocomplete="new-password"></label>
+                <p class="hint">От 12 символов, с заглавной и строчной буквами, цифрой и спецсимволом.</p>
+                <button class="primary" type="submit">Сохранить пароль</button>
+            </form>
+        </section>
+
+        <div id="workspace" hidden>
+            <nav id="nav" aria-label="Разделы">
+                <button type="button" data-tab="orders">Заказы</button>
+                <button type="button" data-tab="analytics">Аналитика</button>
+                <button type="button" data-tab="customers" data-admin>Покупатели</button>
+                <button type="button" data-tab="users" data-admin>Пользователи</button>
+                <button type="button" data-tab="audit" data-admin>Аудит</button>
+                <a id="swagger" href="/swagger-ui.html" target="_blank" rel="noopener" data-admin>Swagger</a>
+            </nav>
+            <section id="orders" class="view">
+                <div class="section-heading">
+                    <h1>Заказы</h1>
+                    <div class="actions">
+                        <button type="button" id="export">Экспорт CSV</button>
+                        <button type="button" id="import" data-edit>Импорт CSV</button>
+                        <button type="button" id="new-order" class="primary" data-edit>Создать заказ</button>
+                    </div>
+                </div>
+                <form id="filters" class="card filters">
+                    <label class="search">Поиск<input name="q" type="search" maxlength="200" placeholder="Номер, покупатель, товар или примечание"></label>
+                    <label>Список<select name="archive"><option value="ACTIVE">Активные</option><option value="ARCHIVED">Архивные</option><option value="ALL">Все</option></select></label>
+                    <label>Покупатель<select name="customerId" id="customer-filter"><option value="">Все покупатели</option></select></label>
+                    <label>Статус<select name="status" id="status-filter"><option value="">Все статусы</option></select></label>
+                    <label>Срочность<select name="urgent"><option value="">Любая</option><option value="true">Срочные</option><option value="false">Обычные</option></select></label>
+                    <label>Приоритет<select name="priority" id="priority-filter"><option value="">Любой</option></select></label>
+                    <label>Тег<input name="tag" maxlength="50" placeholder="Тег заказа"></label>
+                    <label>Сумма, ₽<span class="amount-filter"><select name="totalOp" aria-label="Сравнение суммы"><option value="EQ">=</option><option value="GT">&gt;</option><option value="GTE">≥</option><option value="LT">&lt;</option><option value="LTE">≤</option></select><input name="total" type="number" min="0" step="0.01" aria-label="Сумма"></span></label>
+                    <label>Сортировка<select name="sort"><option value="created,desc">Сначала новые</option><option value="created,asc">Сначала старые</option><option value="code,asc">Номер заказа</option><option value="total,desc">Сумма по убыванию</option><option value="total,asc">Сумма по возрастанию</option><option value="status,asc">Статус</option></select></label>
+                    <div class="actions filter-actions"><button class="primary" type="submit">Применить</button><button type="reset">Сбросить</button></div>
+                </form>
+                <div id="selected-orders" class="selection" hidden></div>
+                <div id="order-table" class="card table-card"></div>
+            </section>
+
+            <section id="analytics" class="view" hidden><h1>Аналитика</h1><div id="analytics-content"></div></section>
+            <section id="customers" class="view" hidden>
+                <div class="section-heading"><h1>Покупатели</h1><button type="button" class="primary" id="new-customer">Добавить покупателя</button></div>
+                <div id="customers-table" class="card table-card"></div>
+            </section>
+            <section id="users" class="view" hidden>
+                <div class="section-heading"><h1>Пользователи</h1><button type="button" class="primary" id="new-user">Добавить пользователя</button></div>
+                <div id="users-table" class="card table-card"></div>
+            </section>
+            <section id="audit" class="view" hidden>
+                <h1>Журнал аудита</h1>
+                <form id="audit-filters" class="card filters">
+                    <label>Поиск<input type="search" name="q" placeholder="Пользователь, событие или ID запроса"></label>
+                    <label>Сортировка<select name="sort"><option value="occurred,desc">Сначала новые</option><option value="occurred,asc">Сначала старые</option><option value="actor,asc">По пользователю</option><option value="event,asc">По событию</option></select></label>
+                    <button type="submit" class="primary">Применить</button>
+                </form>
+                <div id="audit-table" class="card table-card"></div>
+            </section>
+        </div>
+    </main>
+
+    <dialog id="dialog" aria-labelledby="dialog-title">
+        <header class="dialog-heading">
+            <h2 id="dialog-title"></h2>
+            <button type="button" id="close-dialog" class="quiet" aria-label="Закрыть">×</button>
+        </header>
+        <div id="dialog-message" class="message" role="status" hidden></div>
+        <div id="dialog-content"></div>
+    </dialog>
+</body>
+</html>
