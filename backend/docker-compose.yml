@@ -18,7 +18,9 @@ services:
       retries: 15
 
   backend:
-    build: .
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     depends_on:
       db:
         condition: service_healthy

@@ -22,6 +22,29 @@ docker compose --env-file .env -f backend/docker-compose.yml up -d --build --wai
 - Основные ресурсы API: `/api/orders`, `/api/customers`, `/api/analytics/summary`,
   `/api/admin/users` и `/api/admin/audit`.
 
+### Структура веб-части
+
+- `frontend/src/app` — входная точка рабочих разделов и общая навигация.
+- `frontend/src/features` — вход, заказы, аналитика и администрирование.
+- `frontend/src/api` — запросы к серверу и обновление сеанса.
+- `frontend/src/components` и `frontend/src/styles` — общие компоненты и стили.
+- `backend/src` — приложение Spring Boot и миграции PostgreSQL.
+
+Docker собирает React через Vite. Spring Boot отдаёт готовый интерфейс и API
+с одного адреса. Для отдельной разработки фронтенда запустите Docker Compose,
+затем из корня проекта выполните команды с Node.js 24 и npm:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Откройте [localhost:5173](http://localhost:5173/). Vite перенаправляет запросы
+к серверу на порт 8080. Если в `.env` указан другой `APP_PORT`, запустите
+`npm run dev` с переменной `STORE_API_TARGET`, например
+`STORE_API_TARGET=http://localhost:18084 npm run dev`.
+
 При первом входе используйте `BOOTSTRAP_ADMIN_EMAIL` и `BOOTSTRAP_ADMIN_PASSWORD`.
 В пустой базе Flyway создаёт схему и начальные данные предыдущей работы.
 Для подключения **уже заполненной базы КР №1** сделайте резервную копию,
