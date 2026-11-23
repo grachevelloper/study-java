@@ -1,4 +1,4 @@
-export function Table({ columns, rows, pagination, caption }) {
+export function Table({ columns, rows, pagination, caption, numericColumn }) {
   return (
     <div className="card table-card">
       {rows.length > 0 ? (
@@ -8,7 +8,7 @@ export function Table({ columns, rows, pagination, caption }) {
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column} scope="col">
+                  <th key={column} scope="col" className={column === numericColumn ? 'numeric' : undefined}>
                     {column}
                   </th>
                 ))}
@@ -18,7 +18,9 @@ export function Table({ columns, rows, pagination, caption }) {
               {rows.map(({ id, cells }) => (
                 <tr key={id}>
                   {cells.map((cell, index) => (
-                    <td key={columns[index]}>{cell ?? '—'}</td>
+                    <td key={columns[index]} className={columns[index] === numericColumn ? 'numeric' : undefined}>
+                      {cell ?? '—'}
+                    </td>
                   ))}
                 </tr>
               ))}

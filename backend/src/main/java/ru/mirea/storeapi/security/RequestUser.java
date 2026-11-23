@@ -1,67 +1,51 @@
 package ru.mirea.storeapi.security;
 
+import java.security.Principal;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.context.SecurityContextHolder;
+import ru.mirea.storeapi.error.AuthenticationFailedException;
 import ru.mirea.storeapi.domain.Role;
 import ru.mirea.storeapi.domain.UserAccount;
 
-public record UserPrincipal(
+public record RequestUser(
     UUID id,
     String email,
     String displayName,
-    String passwordHash,
-    boolean enabled,
     boolean passwordChangeRequired,
     Set<Role> roles)
-    implements UserDetails {
+    implements Principal {
 
-  public static UserPrincipal from(UserAccount user) {
-    return new UserPrincipal(
+  public static RequestUser from(UserAccount user) {
+    return new RequestUser(
         user.getId(),
         user.getEmail(),
         user.getDisplayName(),
-        user.getPasswordHash(),
-        user.isEnabled(),
         user.isPasswordChangeRequired(),
         Set.copyOf(user.getRoles()));
   }
 
-  @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
     return roles.stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role.name())).toList();
   }
 
-  @Override
-  public String getPassword() {
-    return passwordHash;
+  public static RequestUser currentOrNull() {
+    var authentication = SecurityContextHolder.getContext().getAuthentication();
+    return authentication != null && authentication.getPrincipal() instanceof RequestUser user
+        ? user : null;
+  }
+
+  public static RequestUser require() {
+    RequestUser user = currentOrNull();
+    if (user == null) throw new AuthenticationFailedException();
+    return user;
   }
 
   @Override
-  public String getUsername() {
+  public String getName() {
     return email;
-  }
-
-  @Override
-  public boolean isAccountNonExpired() {
-    return true;
-  }
-
-  @Override
-  public boolean isAccountNonLocked() {
-    return true;
-  }
-
-  @Override
-  public boolean isCredentialsNonExpired() {
-    return true;
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return enabled;
   }
 }

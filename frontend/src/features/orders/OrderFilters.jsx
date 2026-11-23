@@ -10,7 +10,7 @@ export function OrderFilters({ customers, onApply }) {
   }
 
   return (
-    <form className="card filters" onSubmit={submit} onReset={() => onApply({})}>
+    <form className="card filters order-filters" onSubmit={submit} onReset={() => onApply({})}>
       <label className="search">
         Поиск
         <input

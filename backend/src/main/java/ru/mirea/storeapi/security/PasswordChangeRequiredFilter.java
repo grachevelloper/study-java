@@ -45,7 +45,7 @@ public class PasswordChangeRequiredFilter extends OncePerRequestFilter {
     if (restricted
         && !ALLOWED.contains(path)
         && authentication != null
-        && authentication.getPrincipal() instanceof UserPrincipal principal
+        && authentication.getPrincipal() instanceof RequestUser principal
         && principal.passwordChangeRequired()) {
       response.setStatus(403);
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);

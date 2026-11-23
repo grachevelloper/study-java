@@ -21,7 +21,7 @@ import ru.mirea.storeapi.error.ConflictException;
 import ru.mirea.storeapi.error.NotFoundException;
 import ru.mirea.storeapi.repository.RefreshSessionRepository;
 import ru.mirea.storeapi.repository.UserAccountRepository;
-import ru.mirea.storeapi.security.CurrentUserService;
+import ru.mirea.storeapi.security.RequestUser;
 import ru.mirea.storeapi.security.PasswordPolicy;
 
 @Service
@@ -30,7 +30,6 @@ public class UserAdminService {
   private final RefreshSessionRepository sessions;
   private final PasswordEncoder encoder;
   private final PasswordPolicy policy;
-  private final CurrentUserService currentUser;
   private final AuditService audit;
 
   public UserAdminService(
@@ -38,13 +37,11 @@ public class UserAdminService {
       RefreshSessionRepository sessions,
       PasswordEncoder encoder,
       PasswordPolicy policy,
-      CurrentUserService currentUser,
       AuditService audit) {
     this.users = users;
     this.sessions = sessions;
     this.encoder = encoder;
     this.policy = policy;
-    this.currentUser = currentUser;
     this.audit = audit;
   }
 
@@ -91,8 +88,8 @@ public class UserAdminService {
               throw new ConflictException("Пользователь с таким email уже существует");
             });
     Set<Role> roles = normalizeRoles(request.roles());
-    UserAccount actor = currentUser.requireEntity();
-    if (actor.getId().equals(id) && (!request.enabled() || !roles.contains(Role.ADMIN))) {
+    RequestUser actor = RequestUser.require();
+    if (actor.id().equals(id) && (!request.enabled() || !roles.contains(Role.ADMIN))) {
       throw new AccessDeniedException(
           "Администратор не может отключить себя или снять свою последнюю роль ADMIN");
     }

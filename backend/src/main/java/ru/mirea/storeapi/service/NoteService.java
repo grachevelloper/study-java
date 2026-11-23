@@ -16,23 +16,24 @@ import ru.mirea.storeapi.error.ConflictException;
 import ru.mirea.storeapi.error.NotFoundException;
 import ru.mirea.storeapi.repository.OrderNoteRepository;
 import ru.mirea.storeapi.repository.StoreOrderRepository;
-import ru.mirea.storeapi.security.CurrentUserService;
+import ru.mirea.storeapi.repository.UserAccountRepository;
+import ru.mirea.storeapi.security.RequestUser;
 
 @Service
 public class NoteService {
   private final OrderNoteRepository notes;
   private final StoreOrderRepository orders;
-  private final CurrentUserService currentUser;
+  private final UserAccountRepository users;
   private final AuditService audit;
 
   public NoteService(
       OrderNoteRepository notes,
       StoreOrderRepository orders,
-      CurrentUserService currentUser,
+      UserAccountRepository users,
       AuditService audit) {
     this.notes = notes;
     this.orders = orders;
-    this.currentUser = currentUser;
+    this.users = users;
     this.audit = audit;
   }
 
@@ -47,7 +48,7 @@ public class NoteService {
   @Transactional
   public NoteResponse create(UUID orderId, NoteRequest request) {
     StoreOrder order = requireOrder(orderId);
-    UserAccount actor = currentUser.requireEntity();
+    UserAccount actor = users.getReferenceById(RequestUser.require().id());
     OrderNote note =
         new OrderNote(UUID.randomUUID(), order, actor, request.body().trim(), request.pinned());
     notes.saveAndFlush(note);
@@ -63,8 +64,7 @@ public class NoteService {
   @Transactional
   public NoteResponse update(UUID orderId, UUID noteId, NoteRequest request) {
     OrderNote note = requireNote(orderId, noteId);
-    UserAccount actor = currentUser.requireEntity();
-    assertOwnerOrAdmin(note, actor);
+    assertOwnerOrAdmin(note, RequestUser.require());
     if (request.version() == null || request.version() != note.getVersion())
       throw new ConflictException("Заметка уже изменена. Обновите данные");
     note.setBody(request.body().trim());
@@ -78,8 +78,7 @@ public class NoteService {
   @Transactional
   public void delete(UUID orderId, UUID noteId) {
     OrderNote note = requireNote(orderId, noteId);
-    UserAccount actor = currentUser.requireEntity();
-    assertOwnerOrAdmin(note, actor);
+    assertOwnerOrAdmin(note, RequestUser.require());
     notes.delete(note);
     audit.record(
         "NOTE_DELETED", "ORDER_NOTE", noteId, "Удалена заметка", Map.of("orderId", orderId));
@@ -97,8 +96,8 @@ public class NoteService {
     return note;
   }
 
-  private static void assertOwnerOrAdmin(OrderNote note, UserAccount actor) {
-    if (!note.getAuthor().getId().equals(actor.getId()) && !actor.getRoles().contains(Role.ADMIN)) {
+  private static void assertOwnerOrAdmin(OrderNote note, RequestUser actor) {
+    if (!note.getAuthor().getId().equals(actor.id()) && !actor.roles().contains(Role.ADMIN)) {
       throw new AccessDeniedException("Only note author or administrator can modify it");
     }
   }
