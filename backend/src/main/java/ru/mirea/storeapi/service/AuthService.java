@@ -26,8 +26,8 @@ import ru.mirea.storeapi.dto.AuthDtos.LoginRequest;
 import ru.mirea.storeapi.error.AuthenticationFailedException;
 import ru.mirea.storeapi.repository.RefreshSessionRepository;
 import ru.mirea.storeapi.repository.UserAccountRepository;
-import ru.mirea.storeapi.security.CurrentUserService;
-import ru.mirea.storeapi.security.JwtService;
+import ru.mirea.storeapi.security.RequestUser;
+import ru.mirea.storeapi.security.JwtTokenService;
 import ru.mirea.storeapi.security.PasswordPolicy;
 import ru.mirea.storeapi.web.RequestMetadata;
 
@@ -38,8 +38,7 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final PasswordPolicy passwordPolicy;
   private final LoginAttemptService attempts;
-  private final JwtService jwtService;
-  private final CurrentUserService currentUser;
+  private final JwtTokenService jwtTokenService;
   private final AppProperties properties;
   private final RequestMetadata metadata;
   private final AuditService audit;
@@ -52,8 +51,7 @@ public class AuthService {
       PasswordEncoder passwordEncoder,
       PasswordPolicy passwordPolicy,
       LoginAttemptService attempts,
-      JwtService jwtService,
-      CurrentUserService currentUser,
+      JwtTokenService jwtTokenService,
       AppProperties properties,
       RequestMetadata metadata,
       AuditService audit) {
@@ -62,8 +60,7 @@ public class AuthService {
     this.passwordEncoder = passwordEncoder;
     this.passwordPolicy = passwordPolicy;
     this.attempts = attempts;
-    this.jwtService = jwtService;
-    this.currentUser = currentUser;
+    this.jwtTokenService = jwtTokenService;
     this.properties = properties;
     this.metadata = metadata;
     this.audit = audit;
@@ -124,7 +121,7 @@ public class AuthService {
     old.setLastUsedAt(now);
     old.setReplacedBy(next.getId());
 
-    JwtService.IssuedAccessToken access = jwtService.issue(old.getUser());
+    JwtTokenService.IssuedAccessToken access = jwtTokenService.issue(old.getUser());
     return new AuthResponse(
         access.token(), access.expiresAt(), nextRaw, nextExpiry, toCurrentUser(old.getUser()));
   }
@@ -142,12 +139,13 @@ public class AuthService {
 
   @Transactional(readOnly = true)
   public CurrentUser me() {
-    return toCurrentUser(currentUser.requireEntity());
+    RequestUser user = RequestUser.require();
+    return new CurrentUser(user.id(), user.email(), user.displayName(), user.roles(), user.passwordChangeRequired());
   }
 
   @Transactional
   public void changePassword(ChangePasswordRequest request) {
-    UserAccount user = currentUser.requireEntity();
+    UserAccount user = requireCurrentAccount();
     if (request.currentPassword().getBytes(StandardCharsets.UTF_8).length > 72
         || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
       throw new AuthenticationFailedException();
@@ -166,7 +164,7 @@ public class AuthService {
 
   @Transactional
   public void changeInitialPassword(InitialPasswordChangeRequest request) {
-    UserAccount user = currentUser.requireEntity();
+    UserAccount user = requireCurrentAccount();
 
     if (!user.isPasswordChangeRequired()) {
       throw new ru.mirea.storeapi.error.BadRequestException(
@@ -187,6 +185,12 @@ public class AuthService {
         Map.of());
   }
 
+  private UserAccount requireCurrentAccount() {
+    return users.findById(RequestUser.require().id())
+        .filter(UserAccount::isEnabled)
+        .orElseThrow(AuthenticationFailedException::new);
+  }
+
   private void applyNewPassword(UserAccount user, String newPassword) {
     passwordPolicy.validate(newPassword, user.getEmail());
     if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
@@ -198,7 +202,7 @@ public class AuthService {
   }
 
   private AuthResponse issueSession(UserAccount user) {
-    JwtService.IssuedAccessToken access = jwtService.issue(user);
+    JwtTokenService.IssuedAccessToken access = jwtTokenService.issue(user);
     String rawRefresh = randomToken();
     Instant refreshExpiry = Instant.now().plus(properties.jwt().refreshDays(), ChronoUnit.DAYS);
     sessions.save(

@@ -85,7 +85,7 @@ export function OrdersPage({ user, canEdit, isAdmin, customers }) {
         {statuses[order.status]}
         {order.archived && ' · Архив'}
       </span>,
-      <span className="numeric">{money(order.total)}</span>,
+      money(order.total),
       <OrderPriority order={order} />,
       order.tags.join(', ') || '—',
       time(order.updatedAt),
@@ -156,6 +156,7 @@ export function OrdersPage({ user, canEdit, isAdmin, customers }) {
             columns={canEdit ? ['Выбор', ...columns] : columns}
             rows={data.content.map(orderRow)}
             caption="Заказы"
+            numericColumn="Сумма"
             pagination={<Pagination data={data} onPage={setPage} />}
           />
         )}

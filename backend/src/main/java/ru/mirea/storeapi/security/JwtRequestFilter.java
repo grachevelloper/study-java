@@ -17,12 +17,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import ru.mirea.storeapi.repository.UserAccountRepository;
 
 @Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
-  private final JwtService jwtService;
+public class JwtRequestFilter extends OncePerRequestFilter {
+  private final JwtTokenService jwtTokenService;
   private final UserAccountRepository users;
 
-  public JwtAuthenticationFilter(JwtService jwtService, UserAccountRepository users) {
-    this.jwtService = jwtService;
+  public JwtRequestFilter(JwtTokenService jwtTokenService, UserAccountRepository users) {
+    this.jwtTokenService = jwtTokenService;
     this.users = users;
   }
 
@@ -86,7 +86,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     try {
-      Claims claims = jwtService.parse(token);
+      Claims claims = jwtTokenService.parse(token);
       UUID userId = UUID.fromString(claims.getSubject());
 
       users
@@ -100,7 +100,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                           claims.get("pwd", Boolean.class), user.isPasswordChangeRequired()))
           .ifPresent(
               user -> {
-                UserPrincipal principal = UserPrincipal.from(user);
+                RequestUser principal = RequestUser.from(user);
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
                         principal, null, principal.getAuthorities());

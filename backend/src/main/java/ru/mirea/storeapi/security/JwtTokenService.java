@@ -15,11 +15,11 @@ import ru.mirea.storeapi.config.AppProperties;
 import ru.mirea.storeapi.domain.UserAccount;
 
 @Service
-public class JwtService {
+public class JwtTokenService {
   private final AppProperties properties;
   private final SecretKey key;
 
-  public JwtService(AppProperties properties) {
+  public JwtTokenService(AppProperties properties) {
     this.properties = properties;
     byte[] decoded;
     try {

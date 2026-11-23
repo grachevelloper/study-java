@@ -8,15 +8,13 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.mirea.storeapi.domain.AuditEvent;
 import ru.mirea.storeapi.domain.UserAccount;
 import ru.mirea.storeapi.dto.AuditDtos.AuditResponse;
 import ru.mirea.storeapi.repository.AuditEventRepository;
-import ru.mirea.storeapi.security.UserPrincipal;
+import ru.mirea.storeapi.security.RequestUser;
 import ru.mirea.storeapi.web.RequestMetadata;
 
 @Service
@@ -39,7 +37,7 @@ public class AuditService {
       UUID entityId,
       String summary,
       Map<String, ?> safeDetails) {
-    UserPrincipal principal = currentPrincipal();
+    RequestUser principal = RequestUser.currentOrNull();
     String json = null;
     if (safeDetails != null && !safeDetails.isEmpty()) {
       try {
@@ -111,11 +109,4 @@ public class AuditService {
         event.getDetailsJson());
   }
 
-  private static UserPrincipal currentPrincipal() {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    return authentication != null
-            && authentication.getPrincipal() instanceof UserPrincipal principal
-        ? principal
-        : null;
-  }
 }

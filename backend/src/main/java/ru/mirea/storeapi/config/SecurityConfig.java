@@ -21,7 +21,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import ru.mirea.storeapi.dto.ApiError;
-import ru.mirea.storeapi.security.JwtAuthenticationFilter;
+import ru.mirea.storeapi.security.JwtRequestFilter;
 import ru.mirea.storeapi.security.PasswordChangeRequiredFilter;
 
 @Configuration
@@ -36,7 +36,7 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http,
-      JwtAuthenticationFilter jwtFilter,
+      JwtRequestFilter jwtFilter,
       ObjectMapper objectMapper,
       PasswordChangeRequiredFilter passwordChangeFilter)
       throws Exception {
@@ -113,7 +113,7 @@ public class SecurityConfig {
                     .permissionsPolicyHeader(
                         policy -> policy.policy("camera=(), microphone=(), geolocation=()")))
         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-        .addFilterAfter(passwordChangeFilter, JwtAuthenticationFilter.class);
+        .addFilterAfter(passwordChangeFilter, JwtRequestFilter.class);
     return http.build();
   }
 
