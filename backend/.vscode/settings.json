@@ -1,0 +1,10 @@
+{
+    "java.format.settings.url": "../config/java-formatter.xml",
+    "[java]": {
+        "editor.defaultFormatter": "redhat.java",
+        "editor.formatOnSave": true,
+        "editor.detectIndentation": false,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4
+    }
+}

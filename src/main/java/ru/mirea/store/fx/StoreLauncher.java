@@ -1,9 +1,10 @@
 package ru.mirea.store.fx;
 
 public final class StoreLauncher {
-  private StoreLauncher() {}
+    private StoreLauncher() {
+    }
 
-  public static void main(String[] args) {
-    StoreApplication.main(args);
-  }
+    public static void main(String[] args) {
+        StoreApplication.main(args);
+    }
 }

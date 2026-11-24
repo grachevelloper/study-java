@@ -12,25 +12,28 @@ import ru.mirea.storeapi.error.NotFoundException;
 
 @Service
 public class BulkOrderService {
-  private final OrderService orders;
+    private final OrderService orders;
 
-  public BulkOrderService(OrderService orders) {
-    this.orders = orders;
-  }
-
-  public BulkResult apply(BulkRequest request) {
-    var succeeded = new ArrayList<UUID>();
-    var errors = new ArrayList<BulkError>();
-    for (UUID id : request.ids()) {
-      try {
-        orders.bulkAction(id, request);
-        succeeded.add(id);
-      } catch (BadRequestException | ConflictException | NotFoundException ex) {
-        errors.add(new BulkError(id, ex.getMessage()));
-      } catch (DataIntegrityViolationException | OptimisticLockingFailureException ex) {
-        errors.add(new BulkError(id, "Заказ конфликтует с текущими данными"));
-      }
+    public BulkOrderService(OrderService orders) {
+        this.orders = orders;
     }
-    return new BulkResult(succeeded, errors);
-  }
+
+    public BulkResult apply(BulkRequest request) {
+        var succeeded = new ArrayList<UUID>();
+        var errors = new ArrayList<BulkError>();
+        for (UUID id : request.ids()) {
+            try {
+                orders.bulkAction(id, request);
+                succeeded.add(id);
+            } catch (BadRequestException | ConflictException
+                | NotFoundException ex) {
+                errors.add(new BulkError(id, ex.getMessage()));
+            } catch (DataIntegrityViolationException
+                | OptimisticLockingFailureException ex) {
+                errors.add(
+                    new BulkError(id, "Заказ конфликтует с текущими данными"));
+            }
+        }
+        return new BulkResult(succeeded, errors);
+    }
 }

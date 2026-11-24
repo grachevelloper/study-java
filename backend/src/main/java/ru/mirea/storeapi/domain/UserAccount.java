@@ -19,122 +19,124 @@ import java.util.UUID;
 @Table(name = "app_user")
 public class UserAccount extends AuditedVersionedEntity {
 
-  @Id private UUID id;
+    @Id
+    private UUID id;
 
-  @Column(nullable = false, unique = true, length = 254)
-  private String email;
+    @Column(nullable = false, unique = true, length = 254)
+    private String email;
 
-  @Column(name = "display_name", nullable = false, length = 160)
-  private String displayName;
+    @Column(name = "display_name", nullable = false, length = 160)
+    private String displayName;
 
-  @Column(name = "password_hash", nullable = false, length = 100)
-  private String passwordHash;
+    @Column(name = "password_hash", nullable = false, length = 100)
+    private String passwordHash;
 
-  @Column(nullable = false)
-  private boolean enabled = true;
+    @Column(nullable = false)
+    private boolean enabled = true;
 
-  @Column(name = "password_change_required", nullable = false)
-  private boolean passwordChangeRequired = true;
+    @Column(name = "password_change_required", nullable = false)
+    private boolean passwordChangeRequired = true;
 
-  @Column(name = "failed_login_attempts", nullable = false)
-  private int failedLoginAttempts;
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts;
 
-  @Column(nullable = false)
-  private long authVersion;
+    @Column(nullable = false)
+    private long authVersion;
 
-  @Column(name = "locked_until")
-  private Instant lockedUntil;
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
 
-  @ElementCollection(fetch = FetchType.EAGER)
-  @CollectionTable(name = "app_user_role", joinColumns = @JoinColumn(name = "user_id"))
-  @Column(name = "role", nullable = false, length = 32)
-  @Enumerated(EnumType.STRING)
-  private Set<Role> roles = new LinkedHashSet<>();
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "app_user_role", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "role", nullable = false, length = 32)
+    @Enumerated(EnumType.STRING)
+    private Set<Role> roles = new LinkedHashSet<>();
 
-  protected UserAccount() {}
+    protected UserAccount() {
+    }
 
-  public UserAccount(
-      UUID id, String email, String displayName, String passwordHash, Set<Role> roles) {
-    this.id = id;
-    this.email = email;
-    this.displayName = displayName;
-    this.passwordHash = passwordHash;
-    this.roles = new LinkedHashSet<>(roles);
-  }
+    public UserAccount(UUID id, String email, String displayName,
+        String passwordHash, Set<Role> roles) {
+        this.id = id;
+        this.email = email;
+        this.displayName = displayName;
+        this.passwordHash = passwordHash;
+        this.roles = new LinkedHashSet<>(roles);
+    }
 
-  public UUID getId() {
-    return id;
-  }
+    public UUID getId() {
+        return id;
+    }
 
-  public String getEmail() {
-    return email;
-  }
+    public String getEmail() {
+        return email;
+    }
 
-  public void setEmail(String email) {
-    this.email = email;
-  }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-  public String getDisplayName() {
-    return displayName;
-  }
+    public String getDisplayName() {
+        return displayName;
+    }
 
-  public void setDisplayName(String displayName) {
-    this.displayName = displayName;
-  }
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
 
-  public String getPasswordHash() {
-    return passwordHash;
-  }
+    public String getPasswordHash() {
+        return passwordHash;
+    }
 
-  public void setPasswordHash(String passwordHash) {
-    this.passwordHash = passwordHash;
-  }
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 
-  public boolean isEnabled() {
-    return enabled;
-  }
+    public boolean isEnabled() {
+        return enabled;
+    }
 
-  public void setEnabled(boolean enabled) {
-    this.enabled = enabled;
-  }
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
-  public boolean isPasswordChangeRequired() {
-    return passwordChangeRequired;
-  }
+    public boolean isPasswordChangeRequired() {
+        return passwordChangeRequired;
+    }
 
-  public void setPasswordChangeRequired(boolean passwordChangeRequired) {
-    this.passwordChangeRequired = passwordChangeRequired;
-  }
+    public void setPasswordChangeRequired(boolean passwordChangeRequired) {
+        this.passwordChangeRequired = passwordChangeRequired;
+    }
 
-  public long getAuthVersion() {
-    return authVersion;
-  }
+    public long getAuthVersion() {
+        return authVersion;
+    }
 
-  public void advanceAuthVersion() {
-    authVersion++;
-  }
+    public void advanceAuthVersion() {
+        authVersion++;
+    }
 
-  public int getFailedLoginAttempts() {
-    return failedLoginAttempts;
-  }
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
 
-  public void setFailedLoginAttempts(int failedLoginAttempts) {
-    this.failedLoginAttempts = failedLoginAttempts;
-  }
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
 
-  public Instant getLockedUntil() {
-    return lockedUntil;
-  }
+    public Instant getLockedUntil() {
+        return lockedUntil;
+    }
 
-  public void setLockedUntil(Instant lockedUntil) {
-    this.lockedUntil = lockedUntil;
-  }
+    public void setLockedUntil(Instant lockedUntil) {
+        this.lockedUntil = lockedUntil;
+    }
 
-  public Set<Role> getRoles() {
-    return roles;
-  }
+    public Set<Role> getRoles() {
+        return roles;
+    }
 
-  public void setRoles(Set<Role> roles) {
-    this.roles = new LinkedHashSet<>(roles);
-  }
+    public void setRoles(Set<Role> roles) {
+        this.roles = new LinkedHashSet<>(roles);
+    }
 }

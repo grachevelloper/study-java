@@ -13,40 +13,42 @@ import ru.mirea.storeapi.service.CatalogService;
 @RequestMapping("/api")
 @SecurityRequirement(name = "bearerAuth")
 public class CatalogController {
-  private final CatalogService catalog;
+    private final CatalogService catalog;
 
-  public CatalogController(CatalogService catalog) {
-    this.catalog = catalog;
-  }
+    public CatalogController(CatalogService catalog) {
+        this.catalog = catalog;
+    }
 
-  @GetMapping("/customers")
-  public List<CustomerResponse> customers(
-      @RequestParam(defaultValue = "false") boolean activeOnly) {
-    return catalog.customers(activeOnly);
-  }
+    @GetMapping("/customers")
+    public List<CustomerResponse> customers(
+        @RequestParam(defaultValue = "false") boolean activeOnly) {
+        return catalog.customers(activeOnly);
+    }
 
-  @GetMapping("/products")
-  public List<ProductResponse> products() {
-    return catalog.products();
-  }
+    @GetMapping("/products")
+    public List<ProductResponse> products() {
+        return catalog.products();
+    }
 
-  @PostMapping("/customers")
-  @ResponseStatus(HttpStatus.CREATED)
-  @PreAuthorize("hasRole('ADMIN')")
-  public CustomerResponse create(@Valid @RequestBody CustomerRequest request) {
-    return catalog.create(request);
-  }
+    @PostMapping("/customers")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
+    public CustomerResponse create(
+        @Valid @RequestBody CustomerRequest request) {
+        return catalog.create(request);
+    }
 
-  @PutMapping("/customers/{id}")
-  @PreAuthorize("hasRole('ADMIN')")
-  public CustomerResponse update(
-      @PathVariable long id, @Valid @RequestBody CustomerRequest request) {
-    return catalog.update(id, request);
-  }
+    @PutMapping("/customers/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CustomerResponse update(@PathVariable long id,
+        @Valid @RequestBody CustomerRequest request) {
+        return catalog.update(id, request);
+    }
 
-  @PatchMapping("/customers/{id}/active")
-  @PreAuthorize("hasRole('ADMIN')")
-  public CustomerResponse setActive(@PathVariable long id, @RequestParam boolean active) {
-    return catalog.setActive(id, active);
-  }
+    @PatchMapping("/customers/{id}/active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CustomerResponse setActive(@PathVariable long id,
+        @RequestParam boolean active) {
+        return catalog.setActive(id, active);
+    }
 }

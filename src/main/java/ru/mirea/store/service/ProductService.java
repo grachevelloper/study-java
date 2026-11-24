@@ -11,51 +11,34 @@ import ru.mirea.store.validation.InputValidator;
 
 public final class ProductService {
 
-  private final ProductRepository repository;
+    private final ProductRepository repository;
 
-  public ProductService(ProductRepository repository) {
-    this.repository = Objects.requireNonNull(repository);
-  }
-
-  public Product create(
-    String sku,
-    String name,
-    BigDecimal price,
-    int stockQuantity
-  ) {
-    String normalizedSku = InputValidator.sku(sku);
-    String normalizedName = InputValidator.requiredText(
-      name,
-      "Название",
-      InputValidator.MAX_PRODUCT_NAME_LENGTH
-    );
-    BigDecimal normalizedPrice = InputValidator.money(price);
-    int normalizedStock = InputValidator.stock(stockQuantity);
-    if (repository.findAll().stream().anyMatch(value ->
-      value.getSku().equalsIgnoreCase(normalizedSku))) {
-      throw new BusinessRuleException("SKU уже используется товаром.");
+    public ProductService(ProductRepository repository) {
+        this.repository = Objects.requireNonNull(repository);
     }
-    return repository.save(
-      new Product(
-        0,
-        normalizedSku,
-        normalizedName,
-        normalizedPrice,
-        normalizedStock,
-        true
-      )
-    );
-  }
 
-  public List<Product> getAll() {
-    return repository.findAll();
-  }
+    public Product create(String sku, String name, BigDecimal price,
+        int stockQuantity) {
+        String normalizedSku = InputValidator.sku(sku);
+        String normalizedName = InputValidator.requiredText(name, "Название",
+            InputValidator.MAX_PRODUCT_NAME_LENGTH);
+        BigDecimal normalizedPrice = InputValidator.money(price);
+        int normalizedStock = InputValidator.stock(stockQuantity);
+        if (repository.findAll().stream().anyMatch(
+            value -> value.getSku().equalsIgnoreCase(normalizedSku))) {
+            throw new BusinessRuleException("SKU уже используется товаром.");
+        }
+        return repository.save(new Product(0, normalizedSku, normalizedName,
+            normalizedPrice, normalizedStock, true));
+    }
 
-  public Product getById(long id) {
-    return repository
-      .findById(id)
-      .orElseThrow(() ->
-        new EntityNotFoundException("Товар с ID " + id + " не найден.")
-      );
-  }
+    public List<Product> getAll() {
+        return repository.findAll();
+    }
+
+    public Product getById(long id) {
+        return repository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(
+                "Товар с ID " + id + " не найден."));
+    }
 }

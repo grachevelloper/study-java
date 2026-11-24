@@ -6,6 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import ru.mirea.storeapi.domain.OrderItem;
 
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
-  @EntityGraph(attributePaths = "product")
-  List<OrderItem> findByOrderIdOrderByProductId(Long orderId);
+    @EntityGraph(attributePaths = "product")
+    List<OrderItem> findByOrderIdOrderByProductId(Long orderId);
 }

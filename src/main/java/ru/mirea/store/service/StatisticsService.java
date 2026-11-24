@@ -6,13 +6,13 @@ import ru.mirea.store.repository.StatisticsRepository;
 
 public final class StatisticsService {
 
-  private final StatisticsRepository repository;
+    private final StatisticsRepository repository;
 
-  public StatisticsService(StatisticsRepository repository) {
-    this.repository = Objects.requireNonNull(repository);
-  }
+    public StatisticsService(StatisticsRepository repository) {
+        this.repository = Objects.requireNonNull(repository);
+    }
 
-  public SystemStatistics getStatistics() {
-    return repository.load();
-  }
+    public SystemStatistics getStatistics() {
+        return repository.load();
+    }
 }

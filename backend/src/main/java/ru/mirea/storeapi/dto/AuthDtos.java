@@ -9,37 +9,37 @@ import java.util.UUID;
 import ru.mirea.storeapi.domain.Role;
 
 public final class AuthDtos {
-  private AuthDtos() {}
-
-  public enum ClientType {
-    WEB,
-    NATIVE
-  }
-
-  public record LoginRequest(
-      @NotBlank @Email @Size(max = 254) String email,
-      @NotBlank @Size(max = 128) String password,
-      ClientType clientType) {
-    public ClientType effectiveClientType() {
-      return clientType == null ? ClientType.NATIVE : clientType;
+    private AuthDtos() {
     }
-  }
 
-  public record RefreshRequest(@Size(max = 512) String refreshToken) {}
+    public enum ClientType {
+        WEB, NATIVE
+    }
 
-  public record ChangePasswordRequest(
-      @NotBlank @Size(max = 128) String currentPassword,
-      @NotBlank @Size(max = 128) String newPassword) {}
+    public record LoginRequest(@NotBlank @Email @Size(max = 254) String email,
+        @NotBlank @Size(max = 128) String password, ClientType clientType) {
+        public ClientType effectiveClientType() {
+            return clientType == null ? ClientType.NATIVE : clientType;
+        }
+    }
 
-  public record InitialPasswordChangeRequest(@NotBlank @Size(max = 128) String newPassword) {}
+    public record RefreshRequest(@Size(max = 512) String refreshToken) {
+    }
 
-  public record CurrentUser(
-      UUID id, String email, String displayName, Set<Role> roles, boolean passwordChangeRequired) {}
+    public record ChangePasswordRequest(
+        @NotBlank @Size(max = 128) String currentPassword,
+        @NotBlank @Size(max = 128) String newPassword) {
+    }
 
-  public record AuthResponse(
-      String accessToken,
-      Instant accessExpiresAt,
-      String refreshToken,
-      Instant refreshExpiresAt,
-      CurrentUser user) {}
+    public record InitialPasswordChangeRequest(
+        @NotBlank @Size(max = 128) String newPassword) {
+    }
+
+    public record CurrentUser(UUID id, String email, String displayName,
+        Set<Role> roles, boolean passwordChangeRequired) {
+    }
+
+    public record AuthResponse(String accessToken, Instant accessExpiresAt,
+        String refreshToken, Instant refreshExpiresAt, CurrentUser user) {
+    }
 }

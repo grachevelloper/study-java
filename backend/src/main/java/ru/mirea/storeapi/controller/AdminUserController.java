@@ -26,36 +26,40 @@ import ru.mirea.storeapi.web.PageableFactory;
 @SecurityRequirement(name = "bearerAuth")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
-  private final UserAdminService users;
-  private final PageableFactory pageableFactory;
+    private final UserAdminService users;
+    private final PageableFactory pageableFactory;
 
-  public AdminUserController(UserAdminService users, PageableFactory pageableFactory) {
-    this.users = users;
-    this.pageableFactory = pageableFactory;
-  }
+    public AdminUserController(UserAdminService users,
+        PageableFactory pageableFactory) {
+        this.users = users;
+        this.pageableFactory = pageableFactory;
+    }
 
-  @GetMapping
-  public PageResponse<UserResponse> list(
-      @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "25") int size,
-      @RequestParam(defaultValue = "email,asc") String sort) {
-    return PageResponse.from(users.list(pageableFactory.users(page, size, sort)));
-  }
+    @GetMapping
+    public PageResponse<UserResponse> list(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "25") int size,
+        @RequestParam(defaultValue = "email,asc") String sort) {
+        return PageResponse
+            .from(users.list(pageableFactory.users(page, size, sort)));
+    }
 
-  @PostMapping
-  public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
-    return ResponseEntity.status(201).body(users.create(request));
-  }
+    @PostMapping
+    public ResponseEntity<UserResponse> create(
+        @Valid @RequestBody CreateUserRequest request) {
+        return ResponseEntity.status(201).body(users.create(request));
+    }
 
-  @PutMapping("/{id}")
-  public UserResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
-    return users.update(id, request);
-  }
+    @PutMapping("/{id}")
+    public UserResponse update(@PathVariable UUID id,
+        @Valid @RequestBody UpdateUserRequest request) {
+        return users.update(id, request);
+    }
 
-  @PostMapping("/{id}/reset-password")
-  public ResponseEntity<Void> resetPassword(
-      @PathVariable UUID id, @Valid @RequestBody ResetPasswordRequest request) {
-    users.resetPassword(id, request);
-    return ResponseEntity.noContent().build();
-  }
+    @PostMapping("/{id}/reset-password")
+    public ResponseEntity<Void> resetPassword(@PathVariable UUID id,
+        @Valid @RequestBody ResetPasswordRequest request) {
+        users.resetPassword(id, request);
+        return ResponseEntity.noContent().build();
+    }
 }

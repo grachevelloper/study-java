@@ -13,99 +13,96 @@ import java.util.UUID;
 @Entity
 @Table(name = "refresh_session")
 public class RefreshSession {
-  @Id private UUID id;
+    @Id
+    private UUID id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user_id", nullable = false)
-  private UserAccount user;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserAccount user;
 
-  @Column(nullable = false)
-  private long authVersion;
+    @Column(nullable = false)
+    private long authVersion;
 
-  @Column(name = "token_hash", nullable = false, unique = true, length = 64)
-  private String tokenHash;
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
-  @Column(name = "expires_at", nullable = false)
-  private Instant expiresAt;
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
 
-  @Column(name = "revoked_at")
-  private Instant revokedAt;
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
 
-  @Column(name = "replaced_by")
-  private UUID replacedBy;
+    @Column(name = "replaced_by")
+    private UUID replacedBy;
 
-  @Column(name = "user_agent", length = 500)
-  private String userAgent;
+    @Column(name = "user_agent", length = 500)
+    private String userAgent;
 
-  @Column(name = "ip_address", length = 64)
-  private String ipAddress;
+    @Column(name = "ip_address", length = 64)
+    private String ipAddress;
 
-  @Column(name = "created_at", nullable = false)
-  private Instant createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
-  @Column(name = "last_used_at")
-  private Instant lastUsedAt;
+    @Column(name = "last_used_at")
+    private Instant lastUsedAt;
 
-  protected RefreshSession() {}
+    protected RefreshSession() {
+    }
 
-  public RefreshSession(
-      UUID id,
-      UserAccount user,
-      String tokenHash,
-      Instant expiresAt,
-      String userAgent,
-      String ipAddress) {
-    this.id = id;
-    this.user = user;
-    this.authVersion = user.getAuthVersion();
-    this.tokenHash = tokenHash;
-    this.expiresAt = expiresAt;
-    this.userAgent = userAgent;
-    this.ipAddress = ipAddress;
-    this.createdAt = Instant.now();
-  }
+    public RefreshSession(UUID id, UserAccount user, String tokenHash,
+        Instant expiresAt, String userAgent, String ipAddress) {
+        this.id = id;
+        this.user = user;
+        this.authVersion = user.getAuthVersion();
+        this.tokenHash = tokenHash;
+        this.expiresAt = expiresAt;
+        this.userAgent = userAgent;
+        this.ipAddress = ipAddress;
+        this.createdAt = Instant.now();
+    }
 
-  public UUID getId() {
-    return id;
-  }
+    public UUID getId() {
+        return id;
+    }
 
-  public UserAccount getUser() {
-    return user;
-  }
+    public UserAccount getUser() {
+        return user;
+    }
 
-  public long getAuthVersion() {
-    return authVersion;
-  }
+    public long getAuthVersion() {
+        return authVersion;
+    }
 
-  public String getTokenHash() {
-    return tokenHash;
-  }
+    public String getTokenHash() {
+        return tokenHash;
+    }
 
-  public Instant getExpiresAt() {
-    return expiresAt;
-  }
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
 
-  public Instant getRevokedAt() {
-    return revokedAt;
-  }
+    public Instant getRevokedAt() {
+        return revokedAt;
+    }
 
-  public void setRevokedAt(Instant revokedAt) {
-    this.revokedAt = revokedAt;
-  }
+    public void setRevokedAt(Instant revokedAt) {
+        this.revokedAt = revokedAt;
+    }
 
-  public UUID getReplacedBy() {
-    return replacedBy;
-  }
+    public UUID getReplacedBy() {
+        return replacedBy;
+    }
 
-  public void setReplacedBy(UUID replacedBy) {
-    this.replacedBy = replacedBy;
-  }
+    public void setReplacedBy(UUID replacedBy) {
+        this.replacedBy = replacedBy;
+    }
 
-  public Instant getLastUsedAt() {
-    return lastUsedAt;
-  }
+    public Instant getLastUsedAt() {
+        return lastUsedAt;
+    }
 
-  public void setLastUsedAt(Instant lastUsedAt) {
-    this.lastUsedAt = lastUsedAt;
-  }
+    public void setLastUsedAt(Instant lastUsedAt) {
+        this.lastUsedAt = lastUsedAt;
+    }
 }

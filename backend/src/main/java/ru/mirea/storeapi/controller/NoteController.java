@@ -22,37 +22,36 @@ import ru.mirea.storeapi.service.NoteService;
 @RequestMapping("/api/orders/{orderId}/notes")
 @SecurityRequirement(name = "bearerAuth")
 public class NoteController {
-  private final NoteService notes;
+    private final NoteService notes;
 
-  public NoteController(NoteService notes) {
-    this.notes = notes;
-  }
+    public NoteController(NoteService notes) {
+        this.notes = notes;
+    }
 
-  @GetMapping
-  public List<NoteResponse> list(@PathVariable UUID orderId) {
-    return notes.list(orderId);
-  }
+    @GetMapping
+    public List<NoteResponse> list(@PathVariable UUID orderId) {
+        return notes.list(orderId);
+    }
 
-  @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
-  @PostMapping
-  public ResponseEntity<NoteResponse> create(
-      @PathVariable UUID orderId, @Valid @RequestBody NoteRequest request) {
-    return ResponseEntity.status(201).body(notes.create(orderId, request));
-  }
+    @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
+    @PostMapping
+    public ResponseEntity<NoteResponse> create(@PathVariable UUID orderId,
+        @Valid @RequestBody NoteRequest request) {
+        return ResponseEntity.status(201).body(notes.create(orderId, request));
+    }
 
-  @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
-  @PutMapping("/{noteId}")
-  public NoteResponse update(
-      @PathVariable UUID orderId,
-      @PathVariable UUID noteId,
-      @Valid @RequestBody NoteRequest request) {
-    return notes.update(orderId, noteId, request);
-  }
+    @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
+    @PutMapping("/{noteId}")
+    public NoteResponse update(@PathVariable UUID orderId,
+        @PathVariable UUID noteId, @Valid @RequestBody NoteRequest request) {
+        return notes.update(orderId, noteId, request);
+    }
 
-  @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
-  @DeleteMapping("/{noteId}")
-  public ResponseEntity<Void> delete(@PathVariable UUID orderId, @PathVariable UUID noteId) {
-    notes.delete(orderId, noteId);
-    return ResponseEntity.noContent().build();
-  }
+    @PreAuthorize("hasAnyRole('EDITOR','ADMIN')")
+    @DeleteMapping("/{noteId}")
+    public ResponseEntity<Void> delete(@PathVariable UUID orderId,
+        @PathVariable UUID noteId) {
+        notes.delete(orderId, noteId);
+        return ResponseEntity.noContent().build();
+    }
 }

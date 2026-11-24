@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan
 public class StoreApiApplication {
 
-  public static void main(String[] args) {
-    SpringApplication.run(StoreApiApplication.class, args);
-  }
+    public static void main(String[] args) {
+        SpringApplication.run(StoreApiApplication.class, args);
+    }
 }

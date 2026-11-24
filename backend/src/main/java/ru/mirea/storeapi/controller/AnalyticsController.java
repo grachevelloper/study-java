@@ -9,14 +9,14 @@ import ru.mirea.storeapi.service.AnalyticsService;
 @RestController
 @SecurityRequirement(name = "bearerAuth")
 public class AnalyticsController {
-  private final AnalyticsService analytics;
+    private final AnalyticsService analytics;
 
-  public AnalyticsController(AnalyticsService analytics) {
-    this.analytics = analytics;
-  }
+    public AnalyticsController(AnalyticsService analytics) {
+        this.analytics = analytics;
+    }
 
-  @GetMapping("/api/analytics/summary")
-  public AnalyticsResponse summary() {
-    return analytics.summary();
-  }
+    @GetMapping("/api/analytics/summary")
+    public AnalyticsResponse summary() {
+        return analytics.summary();
+    }
 }

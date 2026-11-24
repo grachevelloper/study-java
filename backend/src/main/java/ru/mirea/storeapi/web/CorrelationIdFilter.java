@@ -16,24 +16,25 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
-  public static final String HEADER = "X-Correlation-ID";
-  private static final Pattern SAFE = Pattern.compile("^[A-Za-z0-9._-]{1,100}$");
+    public static final String HEADER = "X-Correlation-ID";
+    private static final Pattern SAFE =
+        Pattern.compile("^[A-Za-z0-9._-]{1,100}$");
 
-  @Override
-  protected void doFilterInternal(
-      HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-      throws ServletException, IOException {
-    String supplied = request.getHeader(HEADER);
-    String correlationId =
-        supplied != null && SAFE.matcher(supplied).matches()
-            ? supplied
-            : UUID.randomUUID().toString();
-    MDC.put("correlationId", correlationId);
-    response.setHeader(HEADER, correlationId);
-    try {
-      chain.doFilter(request, response);
-    } finally {
-      MDC.remove("correlationId");
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+        HttpServletResponse response, FilterChain chain)
+        throws ServletException, IOException {
+        String supplied = request.getHeader(HEADER);
+        String correlationId =
+            supplied != null && SAFE.matcher(supplied).matches()
+                ? supplied
+                : UUID.randomUUID().toString();
+        MDC.put("correlationId", correlationId);
+        response.setHeader(HEADER, correlationId);
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            MDC.remove("correlationId");
+        }
     }
-  }
 }

@@ -6,4 +6,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import ru.mirea.storeapi.domain.AuditEvent;
 
 public interface AuditEventRepository
-    extends JpaRepository<AuditEvent, UUID>, JpaSpecificationExecutor<AuditEvent> {}
+    extends
+        JpaRepository<AuditEvent, UUID>,
+        JpaSpecificationExecutor<AuditEvent> {
+}

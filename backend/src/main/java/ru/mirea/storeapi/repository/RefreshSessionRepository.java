@@ -8,15 +8,16 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import ru.mirea.storeapi.domain.RefreshSession;
 
-public interface RefreshSessionRepository extends JpaRepository<RefreshSession, UUID> {
-  @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-  Optional<RefreshSession> findByTokenHash(String tokenHash);
+public interface RefreshSessionRepository
+    extends
+        JpaRepository<RefreshSession, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<RefreshSession> findByTokenHash(String tokenHash);
 
-  @Modifying
-  @Query(
-      "update RefreshSession s set s.revokedAt = :now where s.user.id = :userId and s.revokedAt is"
-          + " null")
-  int revokeAllForUser(UUID userId, Instant now);
+    @Modifying
+    @Query("update RefreshSession s set s.revokedAt = :now where s.user.id = :userId and s.revokedAt is"
+        + " null")
+    int revokeAllForUser(UUID userId, Instant now);
 
-  long deleteByExpiresAtBefore(Instant threshold);
+    long deleteByExpiresAtBefore(Instant threshold);
 }

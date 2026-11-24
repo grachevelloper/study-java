@@ -7,17 +7,14 @@ import java.util.Objects;
 
 public final class DatabaseManager implements ConnectionProvider {
 
-  private final DatabaseConfig config;
+    private final DatabaseConfig config;
 
-  public DatabaseManager(DatabaseConfig config) {
-    this.config = Objects.requireNonNull(config);
-  }
+    public DatabaseManager(DatabaseConfig config) {
+        this.config = Objects.requireNonNull(config);
+    }
 
-  public Connection getConnection() throws SQLException {
-    return DriverManager.getConnection(
-      config.url(),
-      config.user(),
-      config.password()
-    );
-  }
+    public Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(config.url(), config.user(),
+            config.password());
+    }
 }

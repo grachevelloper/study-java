@@ -27,140 +27,127 @@ import ru.mirea.storeapi.service.AuthService;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-  private static final String REFRESH_COOKIE = "storeapi_refresh";
-  private static final String SWAGGER_COOKIE = "storeapi_swagger";
-  private final AuthService auth;
-  private final AppProperties properties;
+    private static final String REFRESH_COOKIE = "storeapi_refresh";
+    private static final String SWAGGER_COOKIE = "storeapi_swagger";
+    private final AuthService auth;
+    private final AppProperties properties;
 
-  public AuthController(AuthService auth, AppProperties properties) {
-    this.auth = auth;
-    this.properties = properties;
-  }
-
-  @PostMapping("/login")
-  public AuthResponse login(
-      @Valid @RequestBody LoginRequest request, HttpServletResponse response) {
-    AuthResponse issued = auth.login(request);
-    if (request.effectiveClientType() == ClientType.WEB) {
-      setRefreshCookie(response, issued.refreshToken(), issued.refreshExpiresAt());
-      syncSwaggerCookie(response, issued);
-      return withoutRefreshToken(issued);
+    public AuthController(AuthService auth, AppProperties properties) {
+        this.auth = auth;
+        this.properties = properties;
     }
-    return issued;
-  }
 
-  @PostMapping("/refresh")
-  public AuthResponse refresh(
-      @RequestBody(required = false) RefreshRequest request,
-      @CookieValue(name = REFRESH_COOKIE, required = false) String cookie,
-      HttpServletResponse response) {
-    boolean web = cookie != null && !cookie.isBlank();
-    String raw = web ? cookie : request == null ? null : request.refreshToken();
-    AuthResponse issued = auth.refresh(raw);
-    if (web) {
-      setRefreshCookie(response, issued.refreshToken(), issued.refreshExpiresAt());
-      syncSwaggerCookie(response, issued);
-      return withoutRefreshToken(issued);
+    @PostMapping("/login")
+    public AuthResponse login(@Valid @RequestBody LoginRequest request,
+        HttpServletResponse response) {
+        AuthResponse issued = auth.login(request);
+        if (request.effectiveClientType() == ClientType.WEB) {
+            setRefreshCookie(response, issued.refreshToken(),
+                issued.refreshExpiresAt());
+            syncSwaggerCookie(response, issued);
+            return withoutRefreshToken(issued);
+        }
+        return issued;
     }
-    return issued;
-  }
 
-  @PostMapping("/logout")
-  public ResponseEntity<Void> logout(
-      @RequestBody(required = false) RefreshRequest request,
-      @CookieValue(name = REFRESH_COOKIE, required = false) String cookie,
-      HttpServletResponse response) {
-    auth.logout(cookie != null ? cookie : request == null ? null : request.refreshToken());
-    clearRefreshCookie(response);
-    clearSwaggerCookie(response);
-    return ResponseEntity.noContent().build();
-  }
+    @PostMapping("/refresh")
+    public AuthResponse refresh(
+        @RequestBody(required = false) RefreshRequest request,
+        @CookieValue(name = REFRESH_COOKIE, required = false) String cookie,
+        HttpServletResponse response) {
+        boolean web = cookie != null && !cookie.isBlank();
+        String raw =
+            web ? cookie : request == null ? null : request.refreshToken();
+        AuthResponse issued = auth.refresh(raw);
+        if (web) {
+            setRefreshCookie(response, issued.refreshToken(),
+                issued.refreshExpiresAt());
+            syncSwaggerCookie(response, issued);
+            return withoutRefreshToken(issued);
+        }
+        return issued;
+    }
 
-  @GetMapping("/me")
-  public CurrentUser me() {
-    return auth.me();
-  }
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+        @RequestBody(required = false) RefreshRequest request,
+        @CookieValue(name = REFRESH_COOKIE, required = false) String cookie,
+        HttpServletResponse response) {
+        auth.logout(cookie != null
+            ? cookie
+            : request == null ? null : request.refreshToken());
+        clearRefreshCookie(response);
+        clearSwaggerCookie(response);
+        return ResponseEntity.noContent().build();
+    }
 
-  @PostMapping("/change-password")
-  public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-    auth.changePassword(request);
-    return ResponseEntity.noContent().build();
-  }
+    @GetMapping("/me")
+    public CurrentUser me() {
+        return auth.me();
+    }
 
-  @PostMapping("/change-initial-password")
-  public ResponseEntity<Void> changeInitialPassword(
-      @Valid @RequestBody InitialPasswordChangeRequest request) {
-    auth.changeInitialPassword(request);
-    return ResponseEntity.noContent().build();
-  }
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+        @Valid @RequestBody ChangePasswordRequest request) {
+        auth.changePassword(request);
+        return ResponseEntity.noContent().build();
+    }
 
-  private void setRefreshCookie(HttpServletResponse response, String value, Instant expiresAt) {
-    Duration maxAge = Duration.between(Instant.now(), expiresAt);
-    ResponseCookie cookie =
-        ResponseCookie.from(REFRESH_COOKIE, value)
-            .httpOnly(true)
-            .secure(properties.cookieSecure())
-            .sameSite("Strict")
+    @PostMapping("/change-initial-password")
+    public ResponseEntity<Void> changeInitialPassword(
+        @Valid @RequestBody InitialPasswordChangeRequest request) {
+        auth.changeInitialPassword(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    private void setRefreshCookie(HttpServletResponse response, String value,
+        Instant expiresAt) {
+        Duration maxAge = Duration.between(Instant.now(), expiresAt);
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE, value)
+            .httpOnly(true).secure(properties.cookieSecure()).sameSite("Strict")
             .path("/api/auth")
-            .maxAge(maxAge.isNegative() ? Duration.ZERO : maxAge)
-            .build();
-    response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-  }
-
-  private void clearRefreshCookie(HttpServletResponse response) {
-    ResponseCookie cookie =
-        ResponseCookie.from(REFRESH_COOKIE, "")
-            .httpOnly(true)
-            .secure(properties.cookieSecure())
-            .sameSite("Strict")
-            .path("/api/auth")
-            .maxAge(Duration.ZERO)
-            .build();
-    response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-  }
-
-  private void syncSwaggerCookie(HttpServletResponse response, AuthResponse issued) {
-    boolean admin = issued.user().roles().contains(Role.ADMIN);
-    boolean permanentPassword = !issued.user().passwordChangeRequired();
-
-    if (!admin || !permanentPassword) {
-      clearSwaggerCookie(response);
-      return;
+            .maxAge(maxAge.isNegative() ? Duration.ZERO : maxAge).build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    Duration maxAge = Duration.between(Instant.now(), issued.accessExpiresAt());
+    private void clearRefreshCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE, "")
+            .httpOnly(true).secure(properties.cookieSecure()).sameSite("Strict")
+            .path("/api/auth").maxAge(Duration.ZERO).build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
 
-    ResponseCookie cookie =
-        ResponseCookie.from(SWAGGER_COOKIE, issued.accessToken())
-            .httpOnly(true)
-            .secure(properties.cookieSecure())
-            .sameSite("Strict")
-            .path("/")
-            .maxAge(maxAge.isNegative() ? Duration.ZERO : maxAge)
-            .build();
+    private void syncSwaggerCookie(HttpServletResponse response,
+        AuthResponse issued) {
+        boolean admin = issued.user().roles().contains(Role.ADMIN);
+        boolean permanentPassword = !issued.user().passwordChangeRequired();
 
-    response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-  }
+        if (!admin || !permanentPassword) {
+            clearSwaggerCookie(response);
+            return;
+        }
 
-  private void clearSwaggerCookie(HttpServletResponse response) {
-    ResponseCookie cookie =
-        ResponseCookie.from(SWAGGER_COOKIE, "")
-            .httpOnly(true)
-            .secure(properties.cookieSecure())
-            .sameSite("Strict")
-            .path("/")
-            .maxAge(Duration.ZERO)
-            .build();
+        Duration maxAge =
+            Duration.between(Instant.now(), issued.accessExpiresAt());
 
-    response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-  }
+        ResponseCookie cookie = ResponseCookie
+            .from(SWAGGER_COOKIE, issued.accessToken()).httpOnly(true)
+            .secure(properties.cookieSecure()).sameSite("Strict").path("/")
+            .maxAge(maxAge.isNegative() ? Duration.ZERO : maxAge).build();
 
-  private static AuthResponse withoutRefreshToken(AuthResponse source) {
-    return new AuthResponse(
-        source.accessToken(),
-        source.accessExpiresAt(),
-        null,
-        source.refreshExpiresAt(),
-        source.user());
-  }
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private void clearSwaggerCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(SWAGGER_COOKIE, "")
+            .httpOnly(true).secure(properties.cookieSecure()).sameSite("Strict")
+            .path("/").maxAge(Duration.ZERO).build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private static AuthResponse withoutRefreshToken(AuthResponse source) {
+        return new AuthResponse(source.accessToken(), source.accessExpiresAt(),
+            null, source.refreshExpiresAt(), source.user());
+    }
 }

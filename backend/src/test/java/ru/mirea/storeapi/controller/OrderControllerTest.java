@@ -23,8 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @Transactional
 @WithMockUser(roles = "EDITOR")
 class OrderControllerTest {
-  private static final String URGENT_ORDER =
-      """
+    private static final String URGENT_ORDER = """
       {
         "externalId": "URGENT-1",
         "customerId": 1,
@@ -35,55 +34,52 @@ class OrderControllerTest {
       }
       """;
 
-  @Autowired MockMvc mvc;
-  @Autowired JdbcTemplate db;
+    @Autowired
+    MockMvc mvc;
+    @Autowired
+    JdbcTemplate db;
 
-  @BeforeEach
-  void createCatalog() {
-    db.update(
-        """
+    @BeforeEach
+    void createCatalog() {
+        db.update("""
         insert into customers (id, public_id, full_name, email, active, registered_at)
         values (1, random_uuid(), 'Анна Петрова', 'anna@example.org', true, current_timestamp)
         """);
-    db.update(
-        """
+        db.update("""
         insert into products (id, sku, name, price, stock_quantity, active)
         values (1, 'A-1', 'Лампа', 120.00, 5, true)
         """);
-  }
+    }
 
-  @Test
-  void calculatesTotalAndPriorityFromOrderData() throws Exception {
-    mvc.perform(post("/api/orders").contentType(APPLICATION_JSON).content(URGENT_ORDER))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.order.total").value(240.0))
-        .andExpect(jsonPath("$.order.priority").value("HIGH"))
-        .andExpect(jsonPath("$.order.status").value("NEW"));
-  }
+    @Test
+    void calculatesTotalAndPriorityFromOrderData() throws Exception {
+        mvc.perform(post("/api/orders").contentType(APPLICATION_JSON)
+            .content(URGENT_ORDER)).andExpect(status().isCreated())
+            .andExpect(jsonPath("$.order.total").value(240.0))
+            .andExpect(jsonPath("$.order.priority").value("HIGH"))
+            .andExpect(jsonPath("$.order.status").value("NEW"));
+    }
 
-  @Test
-  void combinesTextSearchWithTagAndNumericFilters() throws Exception {
-    mvc.perform(post("/api/orders").contentType(APPLICATION_JSON).content(URGENT_ORDER))
-        .andExpect(status().isCreated());
+    @Test
+    void combinesTextSearchWithTagAndNumericFilters() throws Exception {
+        mvc.perform(post("/api/orders").contentType(APPLICATION_JSON)
+            .content(URGENT_ORDER)).andExpect(status().isCreated());
 
-    mvc.perform(
-            get("/api/orders")
-                .param("q", "лампа")
-                .param("tag", "DELIVERY")
-                .param("total", "200")
-                .param("totalOp", "GT"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(
+            get("/api/orders").param("q", "лампа").param("tag", "DELIVERY")
+                .param("total", "200").param("totalOp", "GT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(1));
 
-    mvc.perform(get("/api/orders").param("q", "лампа").param("total", "250").param("totalOp", "GT"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(0));
-  }
+        mvc.perform(get("/api/orders").param("q", "лампа").param("total", "250")
+            .param("totalOp", "GT")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(0));
+    }
 
-  @Test
-  void returnsBadRequestWhenComparisonHasNoAmount() throws Exception {
-    mvc.perform(get("/api/orders").param("totalOp", "GT"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
-  }
+    @Test
+    void returnsBadRequestWhenComparisonHasNoAmount() throws Exception {
+        mvc.perform(get("/api/orders").param("totalOp", "GT"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
 }

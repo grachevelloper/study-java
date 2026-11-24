@@ -16,20 +16,22 @@ import ru.mirea.storeapi.web.PageableFactory;
 @SecurityRequirement(name = "bearerAuth")
 @PreAuthorize("hasRole('ADMIN')")
 public class AuditController {
-  private final AuditService audit;
-  private final PageableFactory pageableFactory;
+    private final AuditService audit;
+    private final PageableFactory pageableFactory;
 
-  public AuditController(AuditService audit, PageableFactory pageableFactory) {
-    this.audit = audit;
-    this.pageableFactory = pageableFactory;
-  }
+    public AuditController(AuditService audit,
+        PageableFactory pageableFactory) {
+        this.audit = audit;
+        this.pageableFactory = pageableFactory;
+    }
 
-  @GetMapping
-  public PageResponse<AuditResponse> list(
-      @RequestParam(defaultValue = "") String q,
-      @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "25") int size,
-      @RequestParam(defaultValue = "occurred,desc") String sort) {
-    return PageResponse.from(audit.search(q, pageableFactory.audit(page, size, sort)));
-  }
+    @GetMapping
+    public PageResponse<AuditResponse> list(
+        @RequestParam(defaultValue = "") String q,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "25") int size,
+        @RequestParam(defaultValue = "occurred,desc") String sort) {
+        return PageResponse
+            .from(audit.search(q, pageableFactory.audit(page, size, sort)));
+    }
 }

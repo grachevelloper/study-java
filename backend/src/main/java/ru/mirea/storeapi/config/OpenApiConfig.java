@@ -9,21 +9,13 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenApiConfig {
-  @Bean
-  public OpenAPI storeApiOpenApi() {
-    return new OpenAPI()
-        .info(
-            new Info()
-                .title("Online Store REST API")
-                .version("1.0.0")
+    @Bean
+    public OpenAPI storeApiOpenApi() {
+        return new OpenAPI()
+            .info(new Info().title("Online Store REST API").version("1.0.0")
                 .description("API интернет-магазина для веб-клиента и Android"))
-        .components(
-            new Components()
-                .addSecuritySchemes(
-                    "bearerAuth",
-                    new SecurityScheme()
-                        .type(SecurityScheme.Type.HTTP)
-                        .scheme("bearer")
-                        .bearerFormat("JWT")));
-  }
+            .components(new Components().addSecuritySchemes("bearerAuth",
+                new SecurityScheme().type(SecurityScheme.Type.HTTP)
+                    .scheme("bearer").bearerFormat("JWT")));
+    }
 }

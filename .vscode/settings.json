@@ -1,4 +1,28 @@
 {
   "jdk.jdkhome": "/opt/homebrew/opt/openjdk@21",
-  "jdk.project.jdkhome": "/opt/homebrew/opt/openjdk@21"
+  "jdk.project.jdkhome": "/opt/homebrew/opt/openjdk@21",
+  "java.format.settings.url": "config/java-formatter.xml",
+  "[java]": {
+    "editor.defaultFormatter": "redhat.java",
+    "editor.formatOnSave": true,
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4
+  },
+  "[javascript][javascriptreact][css][html]": {
+    "editor.formatOnSave": true,
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "files.insertFinalNewline": true
+  },
+  "[javascript][javascriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "vscode.css-language-features"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  }
 }

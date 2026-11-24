@@ -12,47 +12,35 @@ import ru.mirea.store.validation.InputValidator;
 
 public final class CustomerService {
 
-  private final CustomerRepository repository;
-  private final Clock clock;
+    private final CustomerRepository repository;
+    private final Clock clock;
 
-  public CustomerService(CustomerRepository repository, Clock clock) {
-    this.repository = Objects.requireNonNull(repository);
-    this.clock = Objects.requireNonNull(clock);
-  }
-
-  public Customer create(String fullName, String email, String phone) {
-    String name = InputValidator.requiredText(
-      fullName,
-      "ФИО",
-      InputValidator.MAX_NAME_LENGTH
-    );
-    String normalizedEmail = InputValidator.email(email);
-    String normalizedPhone = InputValidator.phone(phone);
-    if (repository.findAll().stream().anyMatch(value ->
-      value.getEmail().equalsIgnoreCase(normalizedEmail))) {
-      throw new BusinessRuleException("Email уже используется покупателем.");
+    public CustomerService(CustomerRepository repository, Clock clock) {
+        this.repository = Objects.requireNonNull(repository);
+        this.clock = Objects.requireNonNull(clock);
     }
-    return repository.save(
-      new Customer(
-        0,
-        name,
-        normalizedEmail,
-        normalizedPhone,
-        true,
-        LocalDateTime.now(clock)
-      )
-    );
-  }
 
-  public List<Customer> getAll() {
-    return repository.findAll();
-  }
+    public Customer create(String fullName, String email, String phone) {
+        String name = InputValidator.requiredText(fullName, "ФИО",
+            InputValidator.MAX_NAME_LENGTH);
+        String normalizedEmail = InputValidator.email(email);
+        String normalizedPhone = InputValidator.phone(phone);
+        if (repository.findAll().stream().anyMatch(
+            value -> value.getEmail().equalsIgnoreCase(normalizedEmail))) {
+            throw new BusinessRuleException(
+                "Email уже используется покупателем.");
+        }
+        return repository.save(new Customer(0, name, normalizedEmail,
+            normalizedPhone, true, LocalDateTime.now(clock)));
+    }
 
-  public Customer getById(long id) {
-    return repository
-      .findById(id)
-      .orElseThrow(() ->
-        new EntityNotFoundException("Покупатель с ID " + id + " не найден.")
-      );
-  }
+    public List<Customer> getAll() {
+        return repository.findAll();
+    }
+
+    public Customer getById(long id) {
+        return repository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(
+                "Покупатель с ID " + id + " не найден."));
+    }
 }

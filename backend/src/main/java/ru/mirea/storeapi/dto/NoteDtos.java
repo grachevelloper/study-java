@@ -6,19 +6,15 @@ import java.time.Instant;
 import java.util.UUID;
 
 public final class NoteDtos {
-  private NoteDtos() {}
+    private NoteDtos() {
+    }
 
-  public record NoteRequest(
-      @NotBlank @Size(max = 4000) String body, boolean pinned, Long version) {}
+    public record NoteRequest(@NotBlank @Size(max = 4000) String body,
+        boolean pinned, Long version) {
+    }
 
-  public record NoteResponse(
-      UUID id,
-      UUID orderId,
-      UUID authorId,
-      String authorName,
-      String body,
-      boolean pinned,
-      Instant createdAt,
-      Instant updatedAt,
-      long version) {}
+    public record NoteResponse(UUID id, UUID orderId, UUID authorId,
+        String authorName, String body, boolean pinned, Instant createdAt,
+        Instant updatedAt, long version) {
+    }
 }

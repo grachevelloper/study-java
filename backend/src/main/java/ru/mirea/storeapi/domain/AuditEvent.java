@@ -10,114 +10,108 @@ import java.util.UUID;
 @Entity
 @Table(name = "audit_event")
 public class AuditEvent {
-  @Id private UUID id;
+    @Id
+    private UUID id;
 
-  @Column(name = "actor_id")
-  private UUID actorId;
+    @Column(name = "actor_id")
+    private UUID actorId;
 
-  @Column(name = "actor_email", length = 254)
-  private String actorEmail;
+    @Column(name = "actor_email", length = 254)
+    private String actorEmail;
 
-  @Column(name = "event_type", nullable = false, length = 80)
-  private String eventType;
+    @Column(name = "event_type", nullable = false, length = 80)
+    private String eventType;
 
-  @Column(name = "entity_type", length = 80)
-  private String entityType;
+    @Column(name = "entity_type", length = 80)
+    private String entityType;
 
-  @Column(name = "entity_id")
-  private UUID entityId;
+    @Column(name = "entity_id")
+    private UUID entityId;
 
-  @Column(nullable = false, length = 1000)
-  private String summary;
+    @Column(nullable = false, length = 1000)
+    private String summary;
 
-  @Column(name = "correlation_id", length = 100)
-  private String correlationId;
+    @Column(name = "correlation_id", length = 100)
+    private String correlationId;
 
-  @Column(name = "ip_address", length = 64)
-  private String ipAddress;
+    @Column(name = "ip_address", length = 64)
+    private String ipAddress;
 
-  @Column(name = "user_agent", length = 500)
-  private String userAgent;
+    @Column(name = "user_agent", length = 500)
+    private String userAgent;
 
-  @Column(name = "occurred_at", nullable = false)
-  private Instant occurredAt;
+    @Column(name = "occurred_at", nullable = false)
+    private Instant occurredAt;
 
-  @Column(name = "details_json", columnDefinition = "TEXT")
-  private String detailsJson;
+    @Column(name = "details_json", columnDefinition = "TEXT")
+    private String detailsJson;
 
-  protected AuditEvent() {}
+    protected AuditEvent() {
+    }
 
-  public AuditEvent(
-      UUID id,
-      UUID actorId,
-      String actorEmail,
-      String eventType,
-      String entityType,
-      UUID entityId,
-      String summary,
-      String correlationId,
-      String ipAddress,
-      String userAgent,
-      String detailsJson) {
-    this.id = id;
-    this.actorId = actorId;
-    this.actorEmail = actorEmail;
-    this.eventType = eventType;
-    this.entityType = entityType;
-    this.entityId = entityId;
-    this.summary = summary;
-    this.correlationId = correlationId;
-    this.ipAddress = ipAddress;
-    this.userAgent = userAgent;
-    this.occurredAt = Instant.now();
-    this.detailsJson = detailsJson;
-  }
+    public AuditEvent(UUID id, UUID actorId, String actorEmail,
+        String eventType, String entityType, UUID entityId, String summary,
+        String correlationId, String ipAddress, String userAgent,
+        String detailsJson) {
+        this.id = id;
+        this.actorId = actorId;
+        this.actorEmail = actorEmail;
+        this.eventType = eventType;
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.summary = summary;
+        this.correlationId = correlationId;
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
+        this.occurredAt = Instant.now();
+        this.detailsJson = detailsJson;
+    }
 
-  public UUID getId() {
-    return id;
-  }
+    public UUID getId() {
+        return id;
+    }
 
-  public UUID getActorId() {
-    return actorId;
-  }
+    public UUID getActorId() {
+        return actorId;
+    }
 
-  public String getActorEmail() {
-    return actorEmail;
-  }
+    public String getActorEmail() {
+        return actorEmail;
+    }
 
-  public String getEventType() {
-    return eventType;
-  }
+    public String getEventType() {
+        return eventType;
+    }
 
-  public String getEntityType() {
-    return entityType;
-  }
+    public String getEntityType() {
+        return entityType;
+    }
 
-  public UUID getEntityId() {
-    return entityId;
-  }
+    public UUID getEntityId() {
+        return entityId;
+    }
 
-  public String getSummary() {
-    return summary;
-  }
+    public String getSummary() {
+        return summary;
+    }
 
-  public String getCorrelationId() {
-    return correlationId;
-  }
+    public String getCorrelationId() {
+        return correlationId;
+    }
 
-  public String getIpAddress() {
-    return ipAddress;
-  }
+    public String getIpAddress() {
+        return ipAddress;
+    }
 
-  public String getUserAgent() {
-    return userAgent;
-  }
+    public String getUserAgent() {
+        return userAgent;
+    }
 
-  public Instant getOccurredAt() {
-    return occurredAt;
-  }
+    public Instant getOccurredAt() {
+        return occurredAt;
+    }
 
-  public String getDetailsJson() {
-    return detailsJson;
-  }
+    public String getDetailsJson() {
+        return detailsJson;
+    }
 }

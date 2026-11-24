@@ -12,57 +12,60 @@ import java.util.UUID;
 @Entity
 @Table(name = "order_note")
 public class OrderNote extends AuditedVersionedEntity {
-  @Id private UUID id;
+    @Id
+    private UUID id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "order_id", nullable = false)
-  private StoreOrder order;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
+    private StoreOrder order;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "author_id", nullable = false)
-  private UserAccount author;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "author_id", nullable = false)
+    private UserAccount author;
 
-  @Column(nullable = false, length = 4000)
-  private String body;
+    @Column(nullable = false, length = 4000)
+    private String body;
 
-  @Column(nullable = false)
-  private boolean pinned;
+    @Column(nullable = false)
+    private boolean pinned;
 
-  protected OrderNote() {}
+    protected OrderNote() {
+    }
 
-  public OrderNote(UUID id, StoreOrder order, UserAccount author, String body, boolean pinned) {
-    this.id = id;
-    this.order = order;
-    this.author = author;
-    this.body = body;
-    this.pinned = pinned;
-  }
+    public OrderNote(UUID id, StoreOrder order, UserAccount author, String body,
+        boolean pinned) {
+        this.id = id;
+        this.order = order;
+        this.author = author;
+        this.body = body;
+        this.pinned = pinned;
+    }
 
-  public UUID getId() {
-    return id;
-  }
+    public UUID getId() {
+        return id;
+    }
 
-  public StoreOrder getOrder() {
-    return order;
-  }
+    public StoreOrder getOrder() {
+        return order;
+    }
 
-  public UserAccount getAuthor() {
-    return author;
-  }
+    public UserAccount getAuthor() {
+        return author;
+    }
 
-  public String getBody() {
-    return body;
-  }
+    public String getBody() {
+        return body;
+    }
 
-  public void setBody(String body) {
-    this.body = body;
-  }
+    public void setBody(String body) {
+        this.body = body;
+    }
 
-  public boolean isPinned() {
-    return pinned;
-  }
+    public boolean isPinned() {
+        return pinned;
+    }
 
-  public void setPinned(boolean pinned) {
-    this.pinned = pinned;
-  }
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
+    }
 }
